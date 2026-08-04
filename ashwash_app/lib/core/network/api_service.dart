@@ -8,10 +8,10 @@ class ApiService {
   static const String tokenKey = 'jwt_access_token';
   static const String refreshKey = 'jwt_refresh_token';
 
-  static String _activeHost = 'http://127.0.0.1:8000/api';
+  static String _activeHost = 'https://ashwash-backend.onrender.com/api';
   static final List<String> _candidateHosts = [
+    'https://ashwash-backend.onrender.com/api',
     'http://127.0.0.1:8000/api',
-    'http://172.20.10.3:8000/api',
     'http://10.0.2.2:8000/api',
   ];
 

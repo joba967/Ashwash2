@@ -2,7 +2,7 @@ enum Environment { development, staging, production, tunnel }
 
 class ApiConfig {
   // Active environment set to development for physical device testing
-  static Environment currentEnvironment = Environment.development;
+  static Environment currentEnvironment = Environment.production;
 
   // Custom environment override for Cloudflare Tunnel, Ngrok, or custom IP/domain
   static String? _customBaseUrl;
