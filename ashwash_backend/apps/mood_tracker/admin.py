@@ -1,4 +1,4 @@
 from django.contrib import admin
-from .models import DailyCheckIn
+from .models import MoodLog
 
-admin.site.register(DailyCheckIn)
+admin.site.register(MoodLog)
