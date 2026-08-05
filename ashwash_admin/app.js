@@ -217,10 +217,12 @@ function openPatientsModal() {
     const patientsOnly = cachedUsers.filter(u => u.role === 'PATIENT' || u.role === 'USER' || !u.role);
     const tbody = document.getElementById('patientsModalTableBody');
     if (tbody) {
-        tbody.innerHTML = (patientsOnly || []).map(u => `
+        tbody.innerHTML = (patientsOnly || []).map(u => {
+            const uname = u.username || u.first_name || (u.email ? u.email.split('@')[0] : `Patient #${u.id}`);
+            return `
             <tr>
                 <td>#${u.id}</td>
-                <td class="fw-bold text-white">${u.username}</td>
+                <td class="fw-bold text-white">${uname}</td>
                 <td>${u.email || '-'}</td>
                 <td><span class="badge bg-info">PATIENT</span></td>
                 <td>
@@ -235,7 +237,7 @@ function openPatientsModal() {
                     </button>
                 </td>
             </tr>
-        `).join('') || '<tr><td colspan="6" class="text-center text-secondary py-4">No patients registered yet.</td></tr>';
+        `;}).join('') || '<tr><td colspan="6" class="text-center text-secondary py-4">No patients registered yet.</td></tr>';
     }
     const modal = new bootstrap.Modal(document.getElementById('patientsModal'));
     modal.show();
@@ -245,10 +247,12 @@ function openPatientsModal() {
 function openSpecialistsModal() {
     const tbody = document.getElementById('specialistsModalTableBody');
     if (tbody) {
-        tbody.innerHTML = (cachedSpecialists || []).map(s => `
+        tbody.innerHTML = (cachedSpecialists || []).map(s => {
+            const docName = s.full_name || s.user_username || `Dr. Specialist #${s.id}`;
+            return `
             <tr>
                 <td>#${s.id}</td>
-                <td class="fw-bold text-white">${s.full_name}</td>
+                <td class="fw-bold text-white">${docName}</td>
                 <td><span class="badge bg-primary bg-opacity-25 text-primary">${s.specialization || 'Psychologist'}</span></td>
                 <td>${s.qualification || 'MSc Psychology'}</td>
                 <td><code>${s.medical_license_number || 'BMDC-98421'}</code></td>
@@ -265,7 +269,7 @@ function openSpecialistsModal() {
                     }
                 </td>
             </tr>
-        `).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">No specialists registered yet.</td></tr>';
+        `;}).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">No specialists registered yet.</td></tr>';
     }
     const modal = new bootstrap.Modal(document.getElementById('specialistsModal'));
     modal.show();
@@ -319,10 +323,12 @@ function openAppointmentsModal() {
 function renderUserTable(usersToRender) {
     const tbody = document.getElementById('usersTableBody');
     if (tbody) {
-        tbody.innerHTML = (usersToRender || []).map(u => `
+        tbody.innerHTML = (usersToRender || []).map(u => {
+            const uname = u.username || u.first_name || (u.email ? u.email.split('@')[0] : `User #${u.id}`);
+            return `
             <tr>
                 <td>#${u.id}</td>
-                <td class="fw-bold text-white">${u.username}</td>
+                <td class="fw-bold text-white">${uname}</td>
                 <td>${u.email || '-'}</td>
                 <td>
                     <span class="badge ${u.role === 'ADMIN' ? 'bg-danger' : (u.role === 'SPECIALIST' ? 'bg-primary' : 'bg-info')}">
@@ -341,7 +347,7 @@ function renderUserTable(usersToRender) {
                     </button>
                 </td>
             </tr>
-        `).join('') || '<tr><td colspan="6" class="text-center text-secondary py-3">No users found.</td></tr>';
+        `;}).join('') || '<tr><td colspan="6" class="text-center text-secondary py-3">No users found.</td></tr>';
     }
 }
 
@@ -381,10 +387,12 @@ async function loadAdminDashboard() {
         cachedSpecialists = specs || [];
         const tbody = document.getElementById('specialistsTableBody');
         if (tbody) {
-            tbody.innerHTML = (cachedSpecialists || []).map(s => `
+            tbody.innerHTML = (cachedSpecialists || []).map(s => {
+                const docName = s.full_name || s.user_username || `Dr. Specialist #${s.id}`;
+                return `
                 <tr>
                     <td>#${s.id}</td>
-                    <td class="fw-bold text-white">${s.full_name}</td>
+                    <td class="fw-bold text-white">${docName}</td>
                     <td><span class="badge bg-primary bg-opacity-25 text-primary">${s.specialization || 'Psychologist'}</span></td>
                     <td>${s.qualification || 'MSc Psychology'}</td>
                     <td><code>${s.medical_license_number || 'BMDC-98421'}</code></td>
@@ -401,7 +409,7 @@ async function loadAdminDashboard() {
                         }
                     </td>
                 </tr>
-            `).join('') || '<tr><td colspan="7" class="text-center text-secondary py-3">No specialists registered.</td></tr>';
+            `;}).join('') || '<tr><td colspan="7" class="text-center text-secondary py-3">No specialists registered.</td></tr>';
         }
     } catch (_) {}
 
