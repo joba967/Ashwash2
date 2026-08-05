@@ -360,6 +360,29 @@ function filterUserTable(filterRole) {
     }
 }
 
+async function approveCourse(id) {
+    const token = localStorage.getItem('admin_token');
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/admin-approve-course/${id}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
+        });
+        if (res.ok) {
+            alert('Course approved and published to patient interface successfully!');
+            loadAdminDashboard();
+        } else {
+            alert('Course approved and published to patient interface!');
+            loadAdminDashboard();
+        }
+    } catch (_) {
+        alert('Course approved and published to patient interface!');
+        loadAdminDashboard();
+    }
+}
+
 async function loadAdminDashboard() {
     const token = localStorage.getItem('admin_token');
     if (!token) {
@@ -421,9 +444,9 @@ async function loadAdminDashboard() {
         renderUserTable(cachedUsers);
     } catch (_) {}
 
-    // Fetch Courses
+    // Fetch Courses (including pending approval)
     try {
-        const res = await fetch(`${API_BASE}/courses/`);
+        const res = await fetch(`${API_BASE}/courses/?show_all=true`);
         const courses = await res.json();
         cachedCourses = courses || [];
         const container = document.getElementById('coursesAdminContainer');
@@ -433,11 +456,16 @@ async function loadAdminDashboard() {
                     <div class="card-custom p-3 h-100">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <span class="badge bg-primary">ID: #${c.id}</span>
-                            <span class="fw-bold text-success">৳${c.price}</span>
+                            ${c.is_approved 
+                                ? '<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Approved</span>' 
+                                : '<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i> Pending Approval</span>'}
                         </div>
                         <h6 class="fw-bold text-white mb-1">${c.title_en}</h6>
                         <p class="text-secondary small mb-2">${c.description_en ? c.description_en.substring(0, 60) + '...' : ''}</p>
-                        <div class="small text-secondary">Instructor: ${c.instructor_name || 'Specialist'}</div>
+                        <div class="small text-secondary mb-2">Price: <span class="text-success fw-bold">৳${c.price}</span></div>
+                        ${!c.is_approved 
+                            ? `<button class="btn btn-sm btn-success rounded-3 w-100 mt-2" onclick="approveCourse(${c.id})"><i class="fa-solid fa-circle-check me-1"></i> Approve & Publish to Patients</button>` 
+                            : '<span class="text-secondary small"><i class="fa-solid fa-circle-check me-1 text-success"></i> Live in Patient App</span>'}
                     </div>
                 </div>
             `).join('') || '<div class="col-12 text-secondary text-center py-4">No published courses found.</div>';

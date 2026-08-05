@@ -18,6 +18,9 @@ class Course(models.Model):
     is_free = models.BooleanField(default=True)
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=4.9)
     thumbnail_url = models.URLField(max_length=1000, blank=True, default='')
+    media_file = models.FileField(upload_to='course_media/', blank=True, null=True)
+    media_url = models.TextField(blank=True, default='')
+    is_approved = models.BooleanField(default=False) # Requires Admin Approval before showing to Patients!
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
 

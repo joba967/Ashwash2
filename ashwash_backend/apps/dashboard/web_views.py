@@ -522,3 +522,35 @@ class SpecialistUpdateProfileAPIView(APIView):
                 'profile_picture': pic_url,
             }
         })
+
+class AdminApproveCourseAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        try:
+            course = Course.objects.get(pk=pk)
+            course.is_approved = True
+            course.save()
+
+            try:
+                from apps.notifications.views import send_notification
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                spec_name = course.instructor.first_name if (course.instructor and hasattr(course.instructor, 'first_name') and course.instructor.first_name) else 'Specialist Doctor'
+                patients = User.objects.filter(role='PATIENT') if hasattr(User, 'role') else User.objects.filter(is_staff=False)
+                for p in patients:
+                    send_notification(
+                        recipient=p,
+                        sender=course.instructor,
+                        title_en=f"New Approved Course: {course.title_en} 📚",
+                        title_bn=f"নতুন অনুমোদিত কোর্স: {course.title_bn} 📚",
+                        message_en=f"Specialist {spec_name}'s course '{course.title_en}' is now approved and live!",
+                        message_bn=f"বিশেষজ্ঞ {spec_name}-এর কোর্স '{course.title_bn}' এখন অনুমোদিত ও উন্মুক্ত!",
+                        category='COURSE'
+                    )
+            except Exception:
+                pass
+
+            return Response({'message': f"Course '{course.title_en}' has been approved and published to patient portal!"})
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)

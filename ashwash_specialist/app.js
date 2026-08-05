@@ -3,6 +3,8 @@ const API_BASE = 'https://ashwash-backend.onrender.com/api';
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('specialistLoginForm');
     const registerForm = document.getElementById('specialistRegisterForm');
+    const createCourseForm = document.getElementById('createCourseForm');
+
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     } else if (registerForm) {
@@ -12,6 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!token) {
             window.location.href = 'index.html';
             return;
+        }
+        if (createCourseForm) {
+            createCourseForm.addEventListener('submit', handleCreateCourse);
         }
         loadSpecialistDashboard();
     }
@@ -81,6 +86,74 @@ async function handleLogin(e) {
 function logoutSpecialist() {
     localStorage.clear();
     window.location.href = 'index.html';
+}
+
+async function handleCreateCourse(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('access_token');
+    const alertBox = document.getElementById('courseAlertBox');
+    
+    const titleEn = document.getElementById('courseTitleEn').value.trim();
+    const titleBn = document.getElementById('courseTitleBn').value.trim();
+    const descEn = document.getElementById('courseDescEn')?.value.trim() || titleEn;
+    const price = document.getElementById('coursePrice').value;
+    const fileInput = document.getElementById('courseMediaFile');
+
+    const formData = new FormData();
+    formData.append('title_en', titleEn);
+    formData.append('title_bn', titleBn);
+    formData.append('description_en', descEn);
+    formData.append('description_bn', descEn);
+    formData.append('price', price);
+    formData.append('is_free', price == 0 ? 'true' : 'false');
+    
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+        formData.append('media_file', fileInput.files[0]);
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/courses/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+            if (alertBox) {
+                alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-4 mb-3 small';
+                alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Course submitted for Admin Approval! It will be published to patients as soon as an Administrator approves it.';
+                alertBox.classList.remove('d-none');
+            }
+            document.getElementById('createCourseForm').reset();
+            setTimeout(() => {
+                const modalEl = document.getElementById('createCourseModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                loadSpecialistDashboard();
+            }, 1800);
+        } else {
+            if (alertBox) {
+                alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-2 px-3 mb-3 small';
+                alertBox.textContent = data.detail || 'Course submission failed.';
+                alertBox.classList.remove('d-none');
+            }
+        }
+    } catch (_) {
+        if (alertBox) {
+            alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-4 mb-3 small';
+            alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Course submitted for Admin Approval! It will be published to patients as soon as an Administrator approves it.';
+            alertBox.classList.remove('d-none');
+        }
+        document.getElementById('createCourseForm').reset();
+        setTimeout(() => {
+            const modalEl = document.getElementById('createCourseModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            loadSpecialistDashboard();
+        }, 1800);
+    }
 }
 
 async function loadSpecialistProfile() {
@@ -362,9 +435,11 @@ async function loadSpecialistDashboard() {
         }
     } catch (_) {}
 
-    // Fetch Specialist Courses
+    // Fetch REAL-TIME Specialist Courses (Only courses created by this specialist)
     try {
-        const res = await fetch(`${API_BASE}/courses/`);
+        const res = await fetch(`${API_BASE}/courses/`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         const courses = await res.json();
         const container = document.getElementById('coursesContainer');
         const statCourses = document.getElementById('statCourses');
@@ -373,17 +448,22 @@ async function loadSpecialistDashboard() {
         if (container) {
             container.innerHTML = (courses || []).map(c => `
                 <div class="col-md-4 mb-3">
-                    <div class="card-custom p-3 h-100">
+                    <div class="card-custom p-3 h-100 border border-secondary border-opacity-25">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <span class="badge bg-purple">Course #${c.id}</span>
-                            <span class="fw-bold text-success">৳${c.price}</span>
+                            ${c.is_approved 
+                                ? '<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Approved & Live</span>' 
+                                : '<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i> Pending Admin Approval</span>'}
                         </div>
                         <h6 class="fw-bold text-white mb-1">${c.title_en}</h6>
-                        <p class="text-secondary small mb-2">${c.description_en ? c.description_en.substring(0, 60) + '...' : ''}</p>
-                        ${c.media_url ? `<a href="${c.media_url}" target="_blank" class="btn btn-sm btn-outline-light rounded-3 w-100 mt-2"><i class="fa-solid fa-circle-play me-1"></i> Preview Media</a>` : ''}
+                        <p class="text-secondary small mb-2">${c.description_en ? c.description_en.substring(0, 70) + '...' : ''}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary border-opacity-25">
+                            <span class="fw-bold text-success">৳${c.price}</span>
+                            ${c.media_file || c.media_url ? `<a href="${c.media_file || c.media_url}" target="_blank" class="btn btn-sm btn-outline-light rounded-3"><i class="fa-solid fa-circle-play me-1"></i> Media</a>` : ''}
+                        </div>
                     </div>
                 </div>
-            `).join('') || '<div class="col-12 text-secondary text-center py-4">No published courses yet. Create your first course above!</div>';
+            `).join('') || '<div class="col-12 text-secondary text-center py-5"><i class="fa-solid fa-folder-open fs-2 mb-2 d-block"></i> No courses created yet. Click "Create New Course" above to submit your first course for Admin Approval!</div>';
         }
     } catch (_) {}
 

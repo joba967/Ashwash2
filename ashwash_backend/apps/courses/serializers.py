@@ -48,7 +48,7 @@ class CourseSerializer(serializers.ModelSerializer):
             'id', 'instructor', 'instructor_id', 'instructor_details',
             'category', 'category_name', 'title_en', 'title_bn', 'subtitle_en', 'subtitle_bn',
             'description_en', 'description_bn', 'duration_weeks', 'total_tasks',
-            'type_label', 'price', 'is_free', 'rating', 'thumbnail_url', 'created_at', 'updated_at', 'modules'
+            'type_label', 'price', 'is_free', 'rating', 'thumbnail_url', 'media_url', 'media_file', 'is_approved', 'created_at', 'updated_at', 'modules'
         ]
 
     def get_instructor_details(self, obj):

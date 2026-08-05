@@ -41,6 +41,26 @@ class CourseListView(generics.ListCreateAPIView):
         category_id = self.request.query_params.get('category_id')
         instructor_id = self.request.query_params.get('instructor_id') or self.request.query_params.get('instructor')
         search = self.request.query_params.get('search')
+        show_all = self.request.query_params.get('show_all')
+
+        if not show_all and not instructor_id:
+            token = self.request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+            user = self.request.user
+            if not user.is_authenticated and token:
+                try:
+                    from rest_framework_simplejwt.tokens import AccessToken
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    validated_token = AccessToken(token)
+                    user_id = validated_token['user_id']
+                    user = User.objects.get(id=user_id)
+                except Exception:
+                    pass
+
+            if user and user.is_authenticated and (user.role in ['SPECIALIST', 'DOCTOR']):
+                queryset = queryset.filter(instructor=user)
+            elif not (user and user.is_authenticated and (user.is_staff or user.role == 'ADMIN')):
+                queryset = queryset.filter(is_approved=True)
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -58,29 +78,39 @@ class CourseListView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        course = serializer.save(instructor=self.request.user if self.request.user.is_authenticated else None)
-        lessons_data = self.request.data.get('lessons', [])
-        save_lessons_for_course(course, lessons_data)
+        token = self.request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+        user = self.request.user
+        if not user.is_authenticated and token:
+            try:
+                from rest_framework_simplejwt.tokens import AccessToken
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                validated_token = AccessToken(token)
+                user_id = validated_token['user_id']
+                user = User.objects.get(id=user_id)
+            except Exception:
+                pass
 
-        # Trigger 1: Notify all patient users about new course upload
-        try:
-            from apps.notifications.views import send_notification
+        if not user or not user.is_authenticated:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            spec_name = self.request.user.full_name if (self.request.user.is_authenticated and hasattr(self.request.user, 'full_name') and self.request.user.full_name) else 'Specialist'
-            patients = User.objects.filter(role='patient') if hasattr(User, 'role') else User.objects.filter(is_staff=False)
-            for p in patients:
-                send_notification(
-                    recipient=p,
-                    sender=self.request.user if self.request.user.is_authenticated else None,
-                    title_en=f"New Course Published: {course.title_en} 📚",
-                    title_bn=f"নতুন কোর্স যুক্ত হয়েছে: {course.title_bn} 📚",
-                    message_en=f"Specialist {spec_name} published a new course.",
-                    message_bn=f"বিশেষজ্ঞ {spec_name} একটি নতুন কোর্স প্রকাশ করেছেন।",
-                    category='COURSE'
-                )
-        except Exception:
-            pass
+            user = User.objects.filter(role='SPECIALIST').first()
+
+        media_file = self.request.FILES.get('media_file')
+        media_url = self.request.data.get('media_url', '')
+
+        is_appr = False
+        if user and (user.is_staff or getattr(user, 'role', '') == 'ADMIN'):
+            is_appr = True
+
+        course = serializer.save(
+            instructor=user,
+            media_file=media_file,
+            media_url=media_url,
+            is_approved=is_appr
+        )
+        lessons_data = self.request.data.get('lessons', [])
+        save_lessons_for_course(course, lessons_data)
 
 class CourseDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Course.objects.all()

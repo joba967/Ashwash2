@@ -4,7 +4,7 @@ from .specialist_views import SpecialistDashboardSummaryView
 from apps.dashboard.web_views import (
     AdminMetricsAPIView, AdminVerifySpecialistAPIView, AdminToggleUserStatusAPIView,
     AdminSpecialistsListAPIView, AdminUsersListAPIView, AdminUpdateProfileAPIView,
-    SpecialistUpdateProfileAPIView
+    SpecialistUpdateProfileAPIView, AdminApproveCourseAPIView
 )
 
 urlpatterns = [
@@ -17,5 +17,6 @@ urlpatterns = [
     path('admin-update-profile/', AdminUpdateProfileAPIView.as_view(), name='admin_update_profile_api'),
     path('specialist-update-profile/', SpecialistUpdateProfileAPIView.as_view(), name='specialist_update_profile_api'),
     path('admin-verify-specialist/<int:pk>/', AdminVerifySpecialistAPIView.as_view(), name='admin_verify_specialist_api'),
+    path('admin-approve-course/<int:pk>/', AdminApproveCourseAPIView.as_view(), name='admin_approve_course_api'),
     path('admin-toggle-user/<int:pk>/', AdminToggleUserStatusAPIView.as_view(), name='admin_toggle_user_api'),
 ]
