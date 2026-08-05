@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 
 from apps.dashboard.web_views import (
     specialist_login_view, specialist_register_view, specialist_portal_view,
-    admin_login_view, admin_register_view, admin_portal_view, web_logout_view,
+    admin_login_view, admin_portal_view, web_logout_view,
     WebSpecialistRegisterAPIView
 )
 
@@ -15,7 +15,6 @@ urlpatterns = [
     path('specialist/register/', specialist_register_view, name='specialist_register'),
     path('specialist/', specialist_portal_view, name='specialist_portal'),
     path('admin-portal/login/', admin_login_view, name='admin_login'),
-    path('admin-portal/register/', admin_register_view, name='admin_register'),
     path('admin-portal/', admin_portal_view, name='admin_portal'),
     path('web-logout/', web_logout_view, name='web_logout'),
     path('api/auth/specialist-register/', WebSpecialistRegisterAPIView.as_view(), name='api_specialist_register'),

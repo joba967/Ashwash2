@@ -2,48 +2,17 @@ const API_BASE = 'https://ashwash-backend.onrender.com/api';
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('adminLoginForm');
-    const registerForm = document.getElementById('adminRegisterForm');
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
-    } else if (registerForm) {
-        registerForm.addEventListener('submit', handleRegister);
     } else {
+        const token = localStorage.getItem('admin_token');
+        if (!token) {
+            window.location.href = 'login.html';
+            return;
+        }
         loadAdminDashboard();
     }
 });
-
-async function handleRegister(e) {
-    e.preventDefault();
-    const alertBox = document.getElementById('alertBox');
-    const payload = {
-        first_name: document.getElementById('regFirstName').value.trim(),
-        last_name: document.getElementById('regLastName').value.trim(),
-        username: document.getElementById('regUsername').value.trim(),
-        email: document.getElementById('regEmail').value.trim(),
-        password: document.getElementById('regPassword').value.trim(),
-        role: 'ADMIN'
-    };
-
-    try {
-        const res = await fetch(`${API_BASE}/auth/register/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (res.ok) {
-            alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-3 mb-3 small';
-            alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Admin account created successfully! You can now log in.';
-            document.getElementById('adminRegisterForm').reset();
-        } else {
-            alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-2 px-3 mb-3 small';
-            alertBox.textContent = data.detail || 'Admin registration failed.';
-        }
-    } catch (_) {
-        alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-2 px-3 mb-3 small';
-        alertBox.textContent = 'Connection error. Please try again.';
-    }
-}
 
 async function handleLogin(e) {
     e.preventDefault();
@@ -102,7 +71,11 @@ async function verifyDoctor(id) {
 
 async function loadAdminDashboard() {
     const token = localStorage.getItem('admin_token');
-    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+    const headers = { 'Authorization': `Bearer ${token}` };
 
     // Fetch Admin KPI Metrics
     try {

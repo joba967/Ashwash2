@@ -140,31 +140,6 @@ def admin_login_view(request):
 
     return render(request, 'admin/admin_login.html', {'error': error})
 
-def admin_register_view(request):
-    success_msg = None
-    error = None
-    if request.method == 'POST':
-        u = request.POST.get('username', '').strip()
-        e = request.POST.get('email', '').strip()
-        p = request.POST.get('password', '').strip()
-        fn = request.POST.get('first_name', '').strip()
-        ln = request.POST.get('last_name', '').strip()
-
-        if User.objects.filter(username__iexact=u).exists():
-            error = 'Admin username already taken.'
-        else:
-            user = User.objects.create_superuser(
-                username=u,
-                email=e,
-                password=p,
-                first_name=fn,
-                last_name=ln,
-                role=User.Role.ADMIN
-            )
-            success_msg = 'Admin account registered successfully! You can now log in to Executive Portal.'
-
-    return render(request, 'admin/admin_register.html', {'success_msg': success_msg, 'error': error})
-
 @login_required(login_url='admin_login')
 def admin_portal_view(request):
     if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'ADMIN'):
