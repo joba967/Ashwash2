@@ -35,14 +35,16 @@
             <div class="col-md-4">
                 <div class="card-custom p-4 text-center h-100 d-flex flex-column align-items-center">
                     <div class="position-relative mb-3">
-                        <img id="profileAvatarImg" src="https://ui-avatars.com/api/?name=Dr+Specialist&background=A855F7&color=fff&size=128" alt="Profile Picture" class="rounded-circle border border-3 border-purple shadow" style="width: 120px; height: 120px; object-fit: cover;">
-                        <span class="position-absolute bottom-0 end-0 bg-success p-2 border border-2 border-dark rounded-circle" title="Verified Specialist"></span>
+                        <div class="avatar-container">
+                            <img id="profileAvatarImg" src="https://ui-avatars.com/api/?name=Dr+Specialist&background=A855F7&color=fff&size=140" alt="Profile Picture" onerror="handleAvatarError(this)">
+                        </div>
+                        <span class="position-absolute bottom-0 end-0 bg-success p-2 border border-2 border-dark rounded-circle" title="Verified Specialist" style="transform: translate(-10px, -5px);"></span>
                     </div>
 
                     <input type="file" id="specPhotoInput" accept="image/*" class="d-none" onchange="uploadProfilePhoto(this)">
 
-                    <button type="button" class="btn btn-outline-purple btn-sm rounded-pill mb-3 fw-semibold" id="btnPhotoAction" onclick="document.getElementById('specPhotoInput').click()">
-                        <i class="fa-solid fa-camera me-1"></i> <span id="photoBtnText">Add Profile Photo</span>
+                    <button type="button" class="btn btn-purple btn-sm rounded-pill px-4 py-2 mb-3 fw-bold shadow text-white" id="btnPhotoAction" onclick="document.getElementById('specPhotoInput').click()">
+                        <i class="fa-solid fa-camera me-2 text-white"></i><span id="photoBtnText" class="text-white">Add Profile Photo</span>
                     </button>
 
                     <h5 class="fw-bold text-white mb-1" id="displayFullName">Dr. Specialist</h5>
@@ -70,7 +72,7 @@
 
                 <!-- Form 1: Specialist Profile Information -->
                 <div class="card-custom p-4 mb-4">
-                    <h5 class="fw-bold text-white mb-3"><i class="fa-solid fa-user-doctor me-2 text-purple" style="color: #A855F7;"></i> Specialist Credentials & Profile Info</h5>
+                    <h5 class="fw-bold text-white mb-3"><i class="fa-solid fa-user-doctor me-2" style="color: #A855F7;"></i> Specialist Credentials & Profile Info</h5>
                     <form id="specProfileInfoForm">
                         <div class="mb-3">
                             <label class="form-label text-secondary small fw-semibold">Doctor Full Name</label>
@@ -99,7 +101,7 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-purple rounded-3 px-4 py-2 fw-semibold"><i class="fa-solid fa-floppy-disk me-2"></i> Update Profile Info</button>
+                        <button type="submit" class="btn btn-purple rounded-3 px-4 py-2 fw-semibold text-white"><i class="fa-solid fa-floppy-disk me-2"></i> Update Profile Info</button>
                     </form>
                 </div>
 
@@ -166,6 +168,11 @@
                 passForm.addEventListener('submit', handleSpecChangePasswordSubmit);
             }
         });
+
+        function handleAvatarError(img) {
+            const fullName = document.getElementById('displayFullName')?.textContent || 'Specialist';
+            img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=A855F7&color=fff&size=140`;
+        }
 
         function togglePasswordVisibility(inputId, iconId) {
             const input = document.getElementById(inputId);
