@@ -62,24 +62,28 @@ async function handleLogin(e) {
         if (res.ok && data.access) {
             localStorage.setItem('access_token', data.access);
             localStorage.setItem('user', JSON.stringify(data.user || { username: u }));
-            window.location.href = 'index.html';
+            window.location.href = 'dashboard.html';
         } else {
             alertBox.textContent = data.detail || 'Invalid username or password';
             alertBox.classList.remove('d-none');
         }
     } catch (err) {
-        alertBox.textContent = 'Connection error. Please ensure Django server is running.';
+        alertBox.textContent = 'Connection error. Please try again.';
         alertBox.classList.remove('d-none');
     }
 }
 
 function logoutSpecialist() {
     localStorage.clear();
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
 }
 
 async function loadSpecialistDashboard() {
     const token = localStorage.getItem('access_token');
+    if (!token) {
+        window.location.href = 'index.html';
+        return;
+    }
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     if (user && user.first_name) {
