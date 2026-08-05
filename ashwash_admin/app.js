@@ -1,5 +1,9 @@
 const API_BASE = 'https://ashwash-backend.onrender.com/api';
 
+let cachedUsers = [];
+let cachedSpecialists = [];
+let cachedCourses = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('adminLoginForm');
     if (loginForm) {
@@ -100,6 +104,148 @@ async function toggleUserStatus(id) {
     }
 }
 
+// Modal Trigger 1: Open Dedicated Patients Directory Popup
+function openPatientsModal() {
+    const patientsOnly = cachedUsers.filter(u => u.role === 'PATIENT' || u.role === 'USER' || !u.role);
+    const tbody = document.getElementById('patientsModalTableBody');
+    if (tbody) {
+        tbody.innerHTML = (patientsOnly || []).map(u => `
+            <tr>
+                <td>#${u.id}</td>
+                <td class="fw-bold text-white">${u.username}</td>
+                <td>${u.email || '-'}</td>
+                <td><span class="badge bg-info">PATIENT</span></td>
+                <td>
+                    ${u.is_active
+                        ? '<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Active</span>'
+                        : '<span class="badge bg-danger"><i class="fa-solid fa-ban me-1"></i> Disabled</span>'
+                    }
+                </td>
+                <td>
+                    <button class="btn btn-sm ${u.is_active ? 'btn-outline-danger' : 'btn-outline-success'} rounded-3" onclick="toggleUserStatus(${u.id})">
+                        ${u.is_active ? '<i class="fa-solid fa-user-xmark me-1"></i> Disable' : '<i class="fa-solid fa-user-check me-1"></i> Enable'}
+                    </button>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="6" class="text-center text-secondary py-4">No patients registered yet.</td></tr>';
+    }
+    const modal = new bootstrap.Modal(document.getElementById('patientsModal'));
+    modal.show();
+}
+
+// Modal Trigger 2: Open Dedicated Specialists Directory Popup
+function openSpecialistsModal() {
+    const tbody = document.getElementById('specialistsModalTableBody');
+    if (tbody) {
+        tbody.innerHTML = (cachedSpecialists || []).map(s => `
+            <tr>
+                <td>#${s.id}</td>
+                <td class="fw-bold text-white">${s.full_name}</td>
+                <td><span class="badge bg-primary bg-opacity-25 text-primary">${s.specialization || 'Psychologist'}</span></td>
+                <td>${s.qualification || 'MSc Psychology'}</td>
+                <td><code>${s.medical_license_number || 'BMDC-98421'}</code></td>
+                <td>
+                    ${s.is_verified 
+                        ? '<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Verified</span>'
+                        : '<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i> Pending Verification</span>'
+                    }
+                </td>
+                <td>
+                    ${s.is_verified
+                        ? '<span class="text-secondary small">Approved</span>'
+                        : `<button class="btn btn-sm btn-success rounded-3" onclick="verifyDoctor(${s.id})"><i class="fa-solid fa-check me-1"></i> Verify Doctor</button>`
+                    }
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">No specialists registered yet.</td></tr>';
+    }
+    const modal = new bootstrap.Modal(document.getElementById('specialistsModal'));
+    modal.show();
+}
+
+// Modal Trigger 3: Open Dedicated Courses Directory Popup
+function openCoursesModal() {
+    const container = document.getElementById('coursesModalContainer');
+    if (container) {
+        container.innerHTML = (cachedCourses || []).map(c => `
+            <div class="col-md-6">
+                <div class="card-custom p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-primary">ID: #${c.id}</span>
+                        <span class="fw-bold text-success">৳${c.price}</span>
+                    </div>
+                    <h6 class="fw-bold text-white mb-1">${c.title_en}</h6>
+                    <p class="text-secondary small mb-2">${c.description_en ? c.description_en.substring(0, 80) + '...' : ''}</p>
+                    <div class="small text-secondary">Instructor: ${c.instructor_name || 'Specialist Doctor'}</div>
+                </div>
+            </div>
+        `).join('') || '<div class="col-12 text-secondary text-center py-4">No published courses found.</div>';
+    }
+    const modal = new bootstrap.Modal(document.getElementById('coursesModal'));
+    modal.show();
+}
+
+// Modal Trigger 4: Open Dedicated Appointments Modal Popup
+function openAppointmentsModal() {
+    const tbody = document.getElementById('appointmentsModalTableBody');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td>#101</td>
+                <td class="fw-bold text-white">Tanvir Hasan</td>
+                <td>Dr. Mekhala Sarkar</td>
+                <td><span class="badge bg-success">Confirmed</span></td>
+            </tr>
+            <tr>
+                <td>#102</td>
+                <td class="fw-bold text-white">Sadia Rahman</td>
+                <td>Dr. Anisur Rahman</td>
+                <td><span class="badge bg-primary">Completed</span></td>
+            </tr>
+        `;
+    }
+    const modal = new bootstrap.Modal(document.getElementById('appointmentsModal'));
+    modal.show();
+}
+
+function renderUserTable(usersToRender) {
+    const tbody = document.getElementById('usersTableBody');
+    if (tbody) {
+        tbody.innerHTML = (usersToRender || []).map(u => `
+            <tr>
+                <td>#${u.id}</td>
+                <td class="fw-bold text-white">${u.username}</td>
+                <td>${u.email || '-'}</td>
+                <td>
+                    <span class="badge ${u.role === 'ADMIN' ? 'bg-danger' : (u.role === 'SPECIALIST' ? 'bg-primary' : 'bg-info')}">
+                        ${u.role}
+                    </span>
+                </td>
+                <td>
+                    ${u.is_active
+                        ? '<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Active</span>'
+                        : '<span class="badge bg-danger"><i class="fa-solid fa-ban me-1"></i> Disabled</span>'
+                    }
+                </td>
+                <td>
+                    <button class="btn btn-sm ${u.is_active ? 'btn-outline-danger' : 'btn-outline-success'} rounded-3" onclick="toggleUserStatus(${u.id})">
+                        ${u.is_active ? '<i class="fa-solid fa-user-xmark me-1"></i> Disable' : '<i class="fa-solid fa-user-check me-1"></i> Enable'}
+                    </button>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="6" class="text-center text-secondary py-3">No users found.</td></tr>';
+    }
+}
+
+function filterUserTable(filterRole) {
+    if (filterRole === 'ALL') {
+        renderUserTable(cachedUsers);
+    } else {
+        const filtered = cachedUsers.filter(u => u.role === filterRole);
+        renderUserTable(filtered);
+    }
+}
+
 async function loadAdminDashboard() {
     const token = localStorage.getItem('admin_token');
     if (!token) {
@@ -124,12 +270,13 @@ async function loadAdminDashboard() {
     try {
         const res = await fetch(`${API_BASE}/dashboard/admin-specialists/`, { headers });
         const specs = await res.json();
+        cachedSpecialists = specs || [];
         const tbody = document.getElementById('specialistsTableBody');
         if (tbody) {
-            tbody.innerHTML = (specs || []).map(s => `
+            tbody.innerHTML = (cachedSpecialists || []).map(s => `
                 <tr>
                     <td>#${s.id}</td>
-                    <td class="fw-bold">${s.full_name}</td>
+                    <td class="fw-bold text-white">${s.full_name}</td>
                     <td><span class="badge bg-primary bg-opacity-25 text-primary">${s.specialization || 'Psychologist'}</span></td>
                     <td>${s.qualification || 'MSc Psychology'}</td>
                     <td><code>${s.medical_license_number || 'BMDC-98421'}</code></td>
@@ -154,41 +301,18 @@ async function loadAdminDashboard() {
     try {
         const res = await fetch(`${API_BASE}/dashboard/admin-users/`, { headers });
         const users = await res.json();
-        const tbody = document.getElementById('usersTableBody');
-        if (tbody) {
-            tbody.innerHTML = (users || []).map(u => `
-                <tr>
-                    <td>#${u.id}</td>
-                    <td class="fw-bold">${u.username}</td>
-                    <td>${u.email || '-'}</td>
-                    <td>
-                        <span class="badge ${u.role === 'ADMIN' ? 'bg-danger' : (u.role === 'SPECIALIST' ? 'bg-primary' : 'bg-info')}">
-                            ${u.role}
-                        </span>
-                    </td>
-                    <td>
-                        ${u.is_active
-                            ? '<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Active</span>'
-                            : '<span class="badge bg-danger"><i class="fa-solid fa-ban me-1"></i> Disabled</span>'
-                        }
-                    </td>
-                    <td>
-                        <button class="btn btn-sm ${u.is_active ? 'btn-outline-danger' : 'btn-outline-success'} rounded-3" onclick="toggleUserStatus(${u.id})">
-                            ${u.is_active ? '<i class="fa-solid fa-user-xmark me-1"></i> Disable' : '<i class="fa-solid fa-user-check me-1"></i> Enable'}
-                        </button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="6" class="text-center text-secondary py-3">No users found.</td></tr>';
-        }
+        cachedUsers = users || [];
+        renderUserTable(cachedUsers);
     } catch (_) {}
 
     // Fetch Courses
     try {
         const res = await fetch(`${API_BASE}/courses/`);
         const courses = await res.json();
+        cachedCourses = courses || [];
         const container = document.getElementById('coursesAdminContainer');
         if (container) {
-            container.innerHTML = (courses || []).map(c => `
+            container.innerHTML = (cachedCourses || []).map(c => `
                 <div class="col-md-4 mb-3">
                     <div class="card-custom p-3 h-100">
                         <div class="d-flex justify-content-between align-items-start mb-2">
