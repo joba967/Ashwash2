@@ -111,12 +111,16 @@ async function loadSpecialistProfile() {
 
                 const img = document.getElementById('profileAvatarImg');
                 const photoBtnText = document.getElementById('photoBtnText');
+                const localBase64 = localStorage.getItem('spec_avatar_data_url');
                 if (img) {
                     if (u.profile_picture) {
                         img.src = u.profile_picture;
                         if (photoBtnText) photoBtnText.textContent = 'Change Profile Photo';
+                    } else if (localBase64) {
+                        img.src = localBase64;
+                        if (photoBtnText) photoBtnText.textContent = 'Change Profile Photo';
                     } else {
-                        img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name || u.username || 'Specialist')}&background=A855F7&color=fff&size=128`;
+                        img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name || u.username || 'Specialist')}&background=A855F7&color=fff&size=140`;
                         if (photoBtnText) photoBtnText.textContent = 'Add Profile Photo';
                     }
                 }
@@ -131,39 +135,51 @@ async function uploadProfilePhoto(input) {
     const alertBox = document.getElementById('specAlertBox');
     const file = input.files[0];
 
-    const formData = new FormData();
-    formData.append('profile_picture', file);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        const img = document.getElementById('profileAvatarImg');
+        const photoBtnText = document.getElementById('photoBtnText');
+        if (img) img.src = base64Data;
+        if (photoBtnText) photoBtnText.textContent = 'Change Profile Photo';
 
-    try {
-        const res = await fetch(`${API_BASE}/dashboard/specialist-update-profile/`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            body: formData
-        });
-        const data = await res.json();
-        if (res.ok) {
-            if (alertBox) {
-                alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-4 mb-4 small';
-                alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Profile photo uploaded and updated in database successfully!';
-                alertBox.classList.remove('d-none');
+        localStorage.setItem('spec_avatar_data_url', base64Data);
+
+        const formData = new FormData();
+        formData.append('profile_picture', file);
+        formData.append('profile_picture_base64', base64Data);
+
+        try {
+            const res = await fetch(`${API_BASE}/dashboard/specialist-update-profile/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+            const data = await res.json();
+            if (res.ok) {
+                if (alertBox) {
+                    alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-4 mb-4 small';
+                    alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Profile photo uploaded and updated in database successfully!';
+                    alertBox.classList.remove('d-none');
+                }
+            } else {
+                if (alertBox) {
+                    alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-3 px-4 mb-4 small';
+                    alertBox.textContent = data.error || data.detail || 'Failed to upload photo.';
+                    alertBox.classList.remove('d-none');
+                }
             }
-            loadSpecialistProfile();
-        } else {
+        } catch (_) {
             if (alertBox) {
                 alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-3 px-4 mb-4 small';
-                alertBox.textContent = data.error || data.detail || 'Failed to upload photo.';
+                alertBox.textContent = 'Connection error uploading photo.';
                 alertBox.classList.remove('d-none');
             }
         }
-    } catch (_) {
-        if (alertBox) {
-            alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-3 px-4 mb-4 small';
-            alertBox.textContent = 'Connection error uploading photo.';
-            alertBox.classList.remove('d-none');
-        }
-    }
+    };
+    reader.readAsDataURL(file);
 }
 
 async function handleSpecProfileInfoSubmit(e) {

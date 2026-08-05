@@ -413,9 +413,12 @@ class SpecialistUpdateProfileAPIView(APIView):
 
         profile = getattr(user, 'specialist_profile', None)
 
-        pic_url = None
-        if user.profile_picture:
-            pic_url = request.build_absolute_uri(user.profile_picture.url)
+        pic_url = user.preferences.get('profile_picture_base64')
+        if not pic_url and user.profile_picture:
+            try:
+                pic_url = request.build_absolute_uri(user.profile_picture.url)
+            except Exception:
+                pass
 
         return Response({
             'user': {
@@ -461,9 +464,15 @@ class SpecialistUpdateProfileAPIView(APIView):
         qualification = request.data.get('qualification', '').strip()
         current_password = request.data.get('current_password', '').strip()
         new_password = request.data.get('new_password', '').strip()
+        profile_picture_base64 = request.data.get('profile_picture_base64', '')
 
         if 'profile_picture' in request.FILES:
             user.profile_picture = request.FILES['profile_picture']
+
+        if profile_picture_base64:
+            if not isinstance(user.preferences, dict):
+                user.preferences = {}
+            user.preferences['profile_picture_base64'] = profile_picture_base64
 
         if new_password:
             if not current_password:
@@ -493,9 +502,12 @@ class SpecialistUpdateProfileAPIView(APIView):
 
         user.save()
 
-        pic_url = None
-        if user.profile_picture:
-            pic_url = request.build_absolute_uri(user.profile_picture.url)
+        pic_url = user.preferences.get('profile_picture_base64')
+        if not pic_url and user.profile_picture:
+            try:
+                pic_url = request.build_absolute_uri(user.profile_picture.url)
+            except Exception:
+                pass
 
         return Response({
             'message': 'Specialist profile and credentials updated successfully in database!',
