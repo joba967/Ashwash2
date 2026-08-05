@@ -158,6 +158,24 @@ async function handleCreateCourse(e) {
     }
 }
 
+function handleLessonFileChange(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const row = input.closest('.lesson-row');
+        const urlInput = row.querySelector('.lesson-url');
+        const statusEl = row.querySelector('.lesson-file-status');
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (urlInput) urlInput.value = e.target.result;
+            if (statusEl) {
+                statusEl.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Attached: ${file.name} (${Math.round(file.size/1024)} KB)`;
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
 function addNewModuleBlock(modTitle = '', lessons = []) {
     moduleCounter++;
     const container = document.getElementById('modulesContainer');
@@ -172,58 +190,71 @@ function addNewModuleBlock(modTitle = '', lessons = []) {
     if (lessons && lessons.length > 0) {
         lessons.forEach((l, idx) => {
             const taskText = l.assignments && l.assignments.length > 0 ? l.assignments[0].instruction_en : (l.assignment_instruction || '');
+            const existingFile = l.video_url || l.file || '';
             lessonsHtml += `
-                <div class="row g-2 mb-2 align-items-center lesson-row border-bottom border-secondary border-opacity-25 pb-2">
-                    <div class="col-md-4">
-                        <input type="text" class="form-control form-control-sm text-white lesson-title" value="${(l.title_en || l.title || '').replace(/"/g, '&quot;')}" placeholder="Lesson / Task Title (e.g. Day 1: Guided Breathing)">
+                <div class="row g-2 mb-3 align-items-center lesson-row p-2 rounded-3 bg-secondary bg-opacity-10 border border-secondary border-opacity-25">
+                    <div class="col-md-3">
+                        <label class="form-label text-secondary small mb-1">Lesson / Task Title</label>
+                        <input type="text" class="form-control form-control-sm text-white lesson-title" value="${(l.title_en || l.title || '').replace(/"/g, '&quot;')}" placeholder="e.g. Day 1: Guided Breathing">
                     </div>
                     <div class="col-md-2">
+                        <label class="form-label text-secondary small mb-1">Media Type</label>
                         <select class="form-control form-control-sm text-white lesson-type">
-                            <option value="video" ${l.type === 'video' || l.content_en === 'video' ? 'selected' : ''}>Video</option>
-                            <option value="audio" ${l.type === 'audio' || l.content_en === 'audio' ? 'selected' : ''}>Audio</option>
+                            <option value="video" ${l.type === 'video' || l.content_en === 'video' ? 'selected' : ''}>Video (MP4)</option>
+                            <option value="audio" ${l.type === 'audio' || l.content_en === 'audio' ? 'selected' : ''}>Audio (MP3)</option>
+                            <option value="pdf" ${l.type === 'pdf' ? 'selected' : ''}>PDF Document</option>
                             <option value="task" ${l.type === 'task' ? 'selected' : ''}>Homework Task</option>
-                            <option value="pdf" ${l.type === 'pdf' ? 'selected' : ''}>PDF Guide</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <input type="text" class="form-control form-control-sm text-white lesson-url" value="${(l.video_url || l.file || '').replace(/"/g, '&quot;')}" placeholder="Media File URL / Video Link">
+                    <div class="col-md-4">
+                        <label class="form-label text-secondary small mb-1"><i class="fa-solid fa-upload me-1 text-info"></i> Upload Audio / Video / PDF from Device</label>
+                        <input type="file" class="form-control form-control-sm text-white lesson-file-input" accept="video/*,audio/*,.pdf" onchange="handleLessonFileChange(this)">
+                        <input type="hidden" class="lesson-url" value="${existingFile.replace(/"/g, '&quot;')}">
+                        <div class="small text-success lesson-file-status mt-1" style="font-size: 11px;">${existingFile ? '✓ Media file attached' : ''}</div>
                     </div>
                     <div class="col-md-3">
-                        <input type="text" class="form-control form-control-sm text-white lesson-task" value="${taskText.replace(/"/g, '&quot;')}" placeholder="Homework / Patient Instruction">
+                        <label class="form-label text-secondary small mb-1">Homework Instruction</label>
+                        <input type="text" class="form-control form-control-sm text-white lesson-task" value="${taskText.replace(/"/g, '&quot;')}" placeholder="Patient homework instruction">
                     </div>
                 </div>
             `;
         });
     } else {
         lessonsHtml = `
-            <div class="row g-2 mb-2 align-items-center lesson-row border-bottom border-secondary border-opacity-25 pb-2">
-                <div class="col-md-4">
-                    <input type="text" class="form-control form-control-sm text-white lesson-title" placeholder="Lesson / Task Title (e.g. Day 1: Stress Relief)">
+            <div class="row g-2 mb-3 align-items-center lesson-row p-2 rounded-3 bg-secondary bg-opacity-10 border border-secondary border-opacity-25">
+                <div class="col-md-3">
+                    <label class="form-label text-secondary small mb-1">Lesson / Task Title</label>
+                    <input type="text" class="form-control form-control-sm text-white lesson-title" placeholder="e.g. Day 1: Stress Relief">
                 </div>
                 <div class="col-md-2">
+                    <label class="form-label text-secondary small mb-1">Media Type</label>
                     <select class="form-control form-control-sm text-white lesson-type">
-                        <option value="video">Video</option>
-                        <option value="audio">Audio</option>
+                        <option value="video">Video (MP4)</option>
+                        <option value="audio">Audio (MP3)</option>
+                        <option value="pdf">PDF Document</option>
                         <option value="task">Homework Task</option>
-                        <option value="pdf">PDF Guide</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <input type="text" class="form-control form-control-sm text-white lesson-url" placeholder="Media File URL / Link">
+                <div class="col-md-4">
+                    <label class="form-label text-secondary small mb-1"><i class="fa-solid fa-upload me-1 text-info"></i> Upload Audio / Video / PDF from Device</label>
+                    <input type="file" class="form-control form-control-sm text-white lesson-file-input" accept="video/*,audio/*,.pdf" onchange="handleLessonFileChange(this)">
+                    <input type="hidden" class="lesson-url" value="">
+                    <div class="small text-success lesson-file-status mt-1" style="font-size: 11px;"></div>
                 </div>
                 <div class="col-md-3">
-                    <input type="text" class="form-control form-control-sm text-white lesson-task" placeholder="Homework / Patient Instruction">
+                    <label class="form-label text-secondary small mb-1">Homework Instruction</label>
+                    <input type="text" class="form-control form-control-sm text-white lesson-task" placeholder="Patient homework instruction">
                 </div>
             </div>
         `;
     }
 
     div.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="d-flex justify-content-between align-items-center mb-3">
             <input type="text" class="form-control form-control-sm text-white fw-bold w-50 module-title" value="${modTitle.replace(/"/g, '&quot;')}" placeholder="Module Title (e.g. Module 1: Introduction)">
             <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="document.getElementById('${modId}').remove()"><i class="fa-solid fa-trash me-1"></i> Remove Module</button>
         </div>
-        <div class="lessons-container ms-2">
+        <div class="lessons-container">
             ${lessonsHtml}
         </div>
         <button type="button" class="btn btn-sm btn-outline-info rounded-3 mt-2" onclick="addLessonToModule('${modId}')"><i class="fa-solid fa-plus me-1"></i> Add Lesson / Homework Task</button>
@@ -239,24 +270,30 @@ function addLessonToModule(modId) {
     if (!lessonsContainer) return;
 
     const row = document.createElement('div');
-    row.className = 'row g-2 mb-2 align-items-center lesson-row border-bottom border-secondary border-opacity-25 pb-2';
+    row.className = 'row g-2 mb-3 align-items-center lesson-row p-2 rounded-3 bg-secondary bg-opacity-10 border border-secondary border-opacity-25';
     row.innerHTML = `
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <label class="form-label text-secondary small mb-1">Lesson / Task Title</label>
             <input type="text" class="form-control form-control-sm text-white lesson-title" placeholder="Lesson / Task Title">
         </div>
         <div class="col-md-2">
+            <label class="form-label text-secondary small mb-1">Media Type</label>
             <select class="form-control form-control-sm text-white lesson-type">
-                <option value="video">Video</option>
-                <option value="audio">Audio</option>
+                <option value="video">Video (MP4)</option>
+                <option value="audio">Audio (MP3)</option>
+                <option value="pdf">PDF Document</option>
                 <option value="task">Homework Task</option>
-                <option value="pdf">PDF Guide</option>
             </select>
         </div>
-        <div class="col-md-3">
-            <input type="text" class="form-control form-control-sm text-white lesson-url" placeholder="Media File URL / Link">
+        <div class="col-md-4">
+            <label class="form-label text-secondary small mb-1"><i class="fa-solid fa-upload me-1 text-info"></i> Upload Audio / Video / PDF from Device</label>
+            <input type="file" class="form-control form-control-sm text-white lesson-file-input" accept="video/*,audio/*,.pdf" onchange="handleLessonFileChange(this)">
+            <input type="hidden" class="lesson-url" value="">
+            <div class="small text-success lesson-file-status mt-1" style="font-size: 11px;"></div>
         </div>
         <div class="col-md-3">
-            <input type="text" class="form-control form-control-sm text-white lesson-task" placeholder="Homework / Patient Instruction">
+            <label class="form-label text-secondary small mb-1">Homework Instruction</label>
+            <input type="text" class="form-control form-control-sm text-white lesson-task" placeholder="Patient homework instruction">
         </div>
     `;
     lessonsContainer.appendChild(row);
@@ -358,7 +395,7 @@ async function handleSaveEditedCourse(e) {
         if (res.ok) {
             if (alertBox) {
                 alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-4 mb-3 small';
-                alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Course curriculum updated and synced to database! All enrolled patients can now access new modules, lessons & tasks.';
+                alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Course curriculum and device media files updated successfully in database! All enrolled patients can now access new modules, lessons & tasks.';
                 alertBox.classList.remove('d-none');
             }
             setTimeout(() => {
