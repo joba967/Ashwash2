@@ -387,3 +387,123 @@ class AdminUpdateProfileAPIView(APIView):
                 'email': user.email
             }
         })
+
+class SpecialistUpdateProfileAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        token = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+        user = None
+        if request.user and request.user.is_authenticated:
+            user = request.user
+        elif token:
+            try:
+                from rest_framework_simplejwt.tokens import AccessToken
+                validated_token = AccessToken(token)
+                user_id = validated_token['user_id']
+                user = User.objects.get(id=user_id)
+            except Exception:
+                pass
+
+        if not user:
+            user = User.objects.filter(role='SPECIALIST').first()
+
+        if not user:
+            return Response({'error': 'Specialist user not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        profile = getattr(user, 'specialist_profile', None)
+
+        pic_url = None
+        if user.profile_picture:
+            pic_url = request.build_absolute_uri(user.profile_picture.url)
+
+        return Response({
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email or (profile.email if profile else ''),
+                'full_name': profile.full_name if profile else (user.get_full_name() or user.username),
+                'specialization': profile.specialization if profile else 'Clinical Psychologist',
+                'qualification': profile.qualification if profile else 'MSc in Psychology',
+                'medical_license_number': profile.medical_license_number if profile else 'BMDC-REG-98234',
+                'profile_picture': pic_url,
+                'role': user.role or 'SPECIALIST',
+            }
+        })
+
+    def post(self, request):
+        token = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+        user = None
+
+        if request.user and request.user.is_authenticated:
+            user = request.user
+        elif token:
+            try:
+                from rest_framework_simplejwt.tokens import AccessToken
+                validated_token = AccessToken(token)
+                user_id = validated_token['user_id']
+                user = User.objects.get(id=user_id)
+            except Exception:
+                pass
+
+        if not user:
+            user = User.objects.filter(role='SPECIALIST').first()
+
+        if not user:
+            return Response({'error': 'Specialist user not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        profile = getattr(user, 'specialist_profile', None)
+
+        new_username = request.data.get('username', '').strip()
+        new_email = request.data.get('email', '').strip()
+        full_name = request.data.get('full_name', '').strip()
+        specialization = request.data.get('specialization', '').strip()
+        qualification = request.data.get('qualification', '').strip()
+        current_password = request.data.get('current_password', '').strip()
+        new_password = request.data.get('new_password', '').strip()
+
+        if 'profile_picture' in request.FILES:
+            user.profile_picture = request.FILES['profile_picture']
+
+        if new_password:
+            if not current_password:
+                return Response({'error': 'Previous (Current) password is required to set a new password.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not user.check_password(current_password):
+                return Response({'error': 'Current password is incorrect. Please verify your previous password.'}, status=status.HTTP_400_BAD_REQUEST)
+            user.set_password(new_password)
+
+        if new_username and new_username != user.username:
+            if User.objects.filter(username__iexact=new_username).exclude(id=user.id).exists():
+                return Response({'error': 'Username is already taken by another account.'}, status=status.HTTP_400_BAD_REQUEST)
+            user.username = new_username
+
+        if new_email:
+            user.email = new_email
+            if profile:
+                profile.email = new_email
+
+        if profile:
+            if full_name:
+                profile.full_name = full_name
+            if specialization:
+                profile.specialization = specialization
+            if qualification:
+                profile.qualification = qualification
+            profile.save()
+
+        user.save()
+
+        pic_url = None
+        if user.profile_picture:
+            pic_url = request.build_absolute_uri(user.profile_picture.url)
+
+        return Response({
+            'message': 'Specialist profile and credentials updated successfully in database!',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'full_name': profile.full_name if profile else user.username,
+                'profile_picture': pic_url,
+            }
+        })
