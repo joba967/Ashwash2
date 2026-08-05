@@ -4,33 +4,70 @@ from rest_framework.response import Response
 from .models import Course, Lesson, UserCourseProgress, UserLessonProgress
 from .serializers import CourseSerializer, UserCourseProgressSerializer, LessonSerializer
 
-def save_lessons_for_course(course, lessons_data):
-    if not lessons_data:
+def save_lessons_for_course(course, modules_or_lessons_data):
+    if not modules_or_lessons_data:
         return
-    from .models import Module, Lesson
-    module, _ = Module.objects.get_or_create(
-        course=course,
-        order=1,
-        defaults={
-            'title_en': f"Module 1 - {course.title_en}",
-            'title_bn': f"মডিউল ১ - {course.title_bn}",
-        }
-    )
-    for idx, l in enumerate(lessons_data, 1):
-        if isinstance(l, dict):
-            l_title = l.get('title') or l.get('title_en') or f'Lesson {idx}'
-            l_type = l.get('type') or 'video'
-            l_file = l.get('file') or l.get('url') or l.get('video_url') or l.get('content_url') or ''
-            
-            Lesson.objects.create(
-                module=module,
-                title_en=l_title,
-                title_bn=l_title,
-                content_en=l_type,
-                content_bn=l_type,
-                video_url=str(l_file) if str(l_file).startswith('http') else '',
-                order=idx
-            )
+    from .models import Module, Lesson, Assignment
+
+    if isinstance(modules_or_lessons_data, list):
+        for mod_idx, item in enumerate(modules_or_lessons_data, 1):
+            if isinstance(item, dict) and ('lessons' in item or 'module_title' in item):
+                mod_title = item.get('module_title') or item.get('title') or f"Module {mod_idx}"
+                module = Module.objects.create(
+                    course=course,
+                    title_en=mod_title,
+                    title_bn=mod_title,
+                    order=mod_idx
+                )
+                lessons = item.get('lessons', [])
+                for les_idx, l in enumerate(lessons, 1):
+                    if isinstance(l, dict):
+                        l_title = l.get('title') or l.get('title_en') or f'Lesson {les_idx}'
+                        l_type = l.get('type') or 'video'
+                        l_url = l.get('video_url') or l.get('file') or l.get('url') or ''
+                        l_task = l.get('assignment_instruction') or l.get('task') or ''
+
+                        lesson_obj = Lesson.objects.create(
+                            module=module,
+                            title_en=l_title,
+                            title_bn=l_title,
+                            content_en=l_type,
+                            content_bn=l_type,
+                            video_url=str(l_url),
+                            order=les_idx
+                        )
+                        if l_task:
+                            Assignment.objects.create(
+                                lesson=lesson_obj,
+                                instruction_en=l_task,
+                                instruction_bn=l_task
+                            )
+            elif isinstance(item, dict):
+                default_mod, _ = Module.objects.get_or_create(
+                    course=course,
+                    order=1,
+                    defaults={'title_en': f"Module 1 - {course.title_en}", 'title_bn': f"মডিউল ১ - {course.title_bn}"}
+                )
+                l_title = item.get('title') or item.get('title_en') or f'Lesson {mod_idx}'
+                l_type = item.get('type') or 'video'
+                l_url = item.get('video_url') or item.get('file') or item.get('url') or ''
+                l_task = item.get('assignment_instruction') or item.get('task') or ''
+
+                lesson_obj = Lesson.objects.create(
+                    module=default_mod,
+                    title_en=l_title,
+                    title_bn=l_title,
+                    content_en=l_type,
+                    content_bn=l_type,
+                    video_url=str(l_url),
+                    order=mod_idx
+                )
+                if l_task:
+                    Assignment.objects.create(
+                        lesson=lesson_obj,
+                        instruction_en=l_task,
+                        instruction_bn=l_task
+                    )
 
 class CourseListView(generics.ListCreateAPIView):
     serializer_class = CourseSerializer
@@ -109,7 +146,7 @@ class CourseListView(generics.ListCreateAPIView):
             media_url=media_url,
             is_approved=is_appr
         )
-        lessons_data = self.request.data.get('lessons', [])
+        lessons_data = self.request.data.get('modules') or self.request.data.get('lessons', [])
         save_lessons_for_course(course, lessons_data)
 
 class CourseDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -118,28 +155,42 @@ class CourseDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.AllowAny]
 
     def perform_update(self, serializer):
-        course = serializer.save()
-        lessons_data = self.request.data.get('lessons', [])
-        if lessons_data:
-            from .models import Lesson
-            Lesson.objects.filter(module__course=course).delete()
-            save_lessons_for_course(course, lessons_data)
+        media_file = self.request.FILES.get('media_file')
+        media_url = self.request.data.get('media_url', '')
 
-        # Trigger 2: Notify ONLY patients enrolled in this specific course
+        extra_kwargs = {}
+        if media_file:
+            extra_kwargs['media_file'] = media_file
+        if media_url:
+            extra_kwargs['media_url'] = media_url
+
+        course = serializer.save(**extra_kwargs)
+
+        modules_data = self.request.data.get('modules') or self.request.data.get('lessons')
+        if modules_data:
+            from .models import Module
+            Module.objects.filter(course=course).delete()
+            save_lessons_for_course(course, modules_data)
+
+        # Trigger notification to all patients about course curriculum update
         try:
             from apps.notifications.views import send_notification
-            enrolled_progresses = UserCourseProgress.objects.filter(course=course)
-            for prog in enrolled_progresses:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            spec_name = course.instructor.first_name if (course.instructor and hasattr(course.instructor, 'first_name') and course.instructor.first_name) else 'Specialist Doctor'
+            patients = User.objects.filter(role='PATIENT') if hasattr(User, 'role') else User.objects.filter(is_staff=False)
+            for p in patients:
                 send_notification(
-                    recipient=prog.user,
-                    sender=self.request.user if self.request.user.is_authenticated else None,
-                    title_en=f"Enrolled Course Updated: {course.title_en} 🔔",
-                    title_bn=f"আপনার এনরোল করা কোর্স আপডেট: {course.title_bn} 🔔",
-                    message_en=f"New content and lessons were updated in '{course.title_en}'.",
-                    message_bn=f"আপনার এনরোল করা কোর্স '{course.title_bn}'-এ নতুন লেসন ও তথ্য যুক্ত হয়েছে।",
+                    recipient=p,
+                    sender=course.instructor,
+                    title_en=f"Course Curriculum Updated: {course.title_en} 🔔",
+                    title_bn=f"কোর্সের সিলেবাস আপডেট: {course.title_bn} 🔔",
+                    message_en=f"New modules, tasks, and lessons were added to '{course.title_en}' by {spec_name}.",
+                    message_bn=f"বিশেষজ্ঞ {spec_name} আপনার কোর্স '{course.title_bn}'-এ নতুন মডিউল ও লেসন যুক্ত করেছেন।",
                     category='COURSE'
                 )
         except Exception:
+            pass
             pass
 
 class CompleteLessonView(APIView):

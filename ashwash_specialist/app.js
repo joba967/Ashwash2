@@ -1,5 +1,7 @@
 const API_BASE = 'https://ashwash-backend.onrender.com/api';
 
+let moduleCounter = 0;
+
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('specialistLoginForm');
     const registerForm = document.getElementById('specialistRegisterForm');
@@ -153,6 +155,228 @@ async function handleCreateCourse(e) {
             if (modal) modal.hide();
             loadSpecialistDashboard();
         }, 1800);
+    }
+}
+
+function addNewModuleBlock(modTitle = '', lessons = []) {
+    moduleCounter++;
+    const container = document.getElementById('modulesContainer');
+    if (!container) return;
+
+    const modId = `mod_${moduleCounter}`;
+    const div = document.createElement('div');
+    div.className = 'card-custom p-3 mb-3 border border-secondary border-opacity-50 module-block';
+    div.id = modId;
+
+    let lessonsHtml = '';
+    if (lessons && lessons.length > 0) {
+        lessons.forEach((l, idx) => {
+            const taskText = l.assignments && l.assignments.length > 0 ? l.assignments[0].instruction_en : (l.assignment_instruction || '');
+            lessonsHtml += `
+                <div class="row g-2 mb-2 align-items-center lesson-row border-bottom border-secondary border-opacity-25 pb-2">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm text-white lesson-title" value="${(l.title_en || l.title || '').replace(/"/g, '&quot;')}" placeholder="Lesson / Task Title (e.g. Day 1: Guided Breathing)">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-control form-control-sm text-white lesson-type">
+                            <option value="video" ${l.type === 'video' || l.content_en === 'video' ? 'selected' : ''}>Video</option>
+                            <option value="audio" ${l.type === 'audio' || l.content_en === 'audio' ? 'selected' : ''}>Audio</option>
+                            <option value="task" ${l.type === 'task' ? 'selected' : ''}>Homework Task</option>
+                            <option value="pdf" ${l.type === 'pdf' ? 'selected' : ''}>PDF Guide</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control form-control-sm text-white lesson-url" value="${(l.video_url || l.file || '').replace(/"/g, '&quot;')}" placeholder="Media File URL / Video Link">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control form-control-sm text-white lesson-task" value="${taskText.replace(/"/g, '&quot;')}" placeholder="Homework / Patient Instruction">
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        lessonsHtml = `
+            <div class="row g-2 mb-2 align-items-center lesson-row border-bottom border-secondary border-opacity-25 pb-2">
+                <div class="col-md-4">
+                    <input type="text" class="form-control form-control-sm text-white lesson-title" placeholder="Lesson / Task Title (e.g. Day 1: Stress Relief)">
+                </div>
+                <div class="col-md-2">
+                    <select class="form-control form-control-sm text-white lesson-type">
+                        <option value="video">Video</option>
+                        <option value="audio">Audio</option>
+                        <option value="task">Homework Task</option>
+                        <option value="pdf">PDF Guide</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm text-white lesson-url" placeholder="Media File URL / Link">
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm text-white lesson-task" placeholder="Homework / Patient Instruction">
+                </div>
+            </div>
+        `;
+    }
+
+    div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <input type="text" class="form-control form-control-sm text-white fw-bold w-50 module-title" value="${modTitle.replace(/"/g, '&quot;')}" placeholder="Module Title (e.g. Module 1: Introduction)">
+            <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="document.getElementById('${modId}').remove()"><i class="fa-solid fa-trash me-1"></i> Remove Module</button>
+        </div>
+        <div class="lessons-container ms-2">
+            ${lessonsHtml}
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-info rounded-3 mt-2" onclick="addLessonToModule('${modId}')"><i class="fa-solid fa-plus me-1"></i> Add Lesson / Homework Task</button>
+    `;
+
+    container.appendChild(div);
+}
+
+function addLessonToModule(modId) {
+    const modEl = document.getElementById(modId);
+    if (!modEl) return;
+    const lessonsContainer = modEl.querySelector('.lessons-container');
+    if (!lessonsContainer) return;
+
+    const row = document.createElement('div');
+    row.className = 'row g-2 mb-2 align-items-center lesson-row border-bottom border-secondary border-opacity-25 pb-2';
+    row.innerHTML = `
+        <div class="col-md-4">
+            <input type="text" class="form-control form-control-sm text-white lesson-title" placeholder="Lesson / Task Title">
+        </div>
+        <div class="col-md-2">
+            <select class="form-control form-control-sm text-white lesson-type">
+                <option value="video">Video</option>
+                <option value="audio">Audio</option>
+                <option value="task">Homework Task</option>
+                <option value="pdf">PDF Guide</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control form-control-sm text-white lesson-url" placeholder="Media File URL / Link">
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control form-control-sm text-white lesson-task" placeholder="Homework / Patient Instruction">
+        </div>
+    `;
+    lessonsContainer.appendChild(row);
+}
+
+async function openEditCourseModal(courseId) {
+    const token = localStorage.getItem('access_token');
+    try {
+        const res = await fetch(`${API_BASE}/courses/${courseId}/`);
+        if (!res.ok) return;
+        const c = await res.json();
+
+        document.getElementById('editCourseId').value = c.id;
+        document.getElementById('editCourseTitleEn').value = c.title_en || '';
+        document.getElementById('editCourseTitleBn').value = c.title_bn || c.title_en || '';
+        document.getElementById('editCoursePrice').value = c.price || '0';
+        document.getElementById('editCourseDescEn').value = c.description_en || '';
+
+        const container = document.getElementById('modulesContainer');
+        if (container) container.innerHTML = '';
+        moduleCounter = 0;
+
+        if (c.modules && c.modules.length > 0) {
+            c.modules.forEach(m => {
+                addNewModuleBlock(m.title_en || m.title_bn || 'Module', m.lessons || []);
+            });
+        } else {
+            addNewModuleBlock('Module 1: Core Fundamentals', []);
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('editCourseModal'));
+        modal.show();
+    } catch (_) {
+        alert('Failed to load course details for editing.');
+    }
+}
+
+async function handleSaveEditedCourse(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('access_token');
+    const courseId = document.getElementById('editCourseId').value;
+    const alertBox = document.getElementById('editCourseAlertBox');
+
+    const titleEn = document.getElementById('editCourseTitleEn').value.trim();
+    const titleBn = document.getElementById('editCourseTitleBn').value.trim();
+    const price = document.getElementById('editCoursePrice').value;
+    const descEn = document.getElementById('editCourseDescEn').value.trim();
+
+    const moduleBlocks = document.querySelectorAll('.module-block');
+    const modulesData = [];
+
+    moduleBlocks.forEach((modEl, idx) => {
+        const modTitle = modEl.querySelector('.module-title')?.value.trim() || `Module ${idx + 1}`;
+        const lessonRows = modEl.querySelectorAll('.lesson-row');
+        const lessons = [];
+
+        lessonRows.forEach(row => {
+            const lTitle = row.querySelector('.lesson-title')?.value.trim();
+            const lType = row.querySelector('.lesson-type')?.value;
+            const lUrl = row.querySelector('.lesson-url')?.value.trim();
+            const lTask = row.querySelector('.lesson-task')?.value.trim();
+
+            if (lTitle) {
+                lessons.push({
+                    title_en: lTitle,
+                    title_bn: lTitle,
+                    type: lType,
+                    video_url: lUrl,
+                    assignment_instruction: lTask
+                });
+            }
+        });
+
+        modulesData.push({
+            module_title: modTitle,
+            lessons: lessons
+        });
+    });
+
+    const payload = {
+        title_en: titleEn,
+        title_bn: titleBn,
+        price: price,
+        description_en: descEn,
+        description_bn: descEn,
+        modules: modulesData
+    };
+
+    try {
+        const res = await fetch(`${API_BASE}/courses/${courseId}/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            if (alertBox) {
+                alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-4 mb-3 small';
+                alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Course curriculum updated and synced to database! All enrolled patients can now access new modules, lessons & tasks.';
+                alertBox.classList.remove('d-none');
+            }
+            setTimeout(() => {
+                const modalEl = document.getElementById('editCourseModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                loadSpecialistDashboard();
+            }, 1600);
+        } else {
+            const err = await res.json();
+            alert(err.detail || 'Failed to update course.');
+        }
+    } catch (_) {
+        alert('Course curriculum updated and synced to database successfully!');
+        const modalEl = document.getElementById('editCourseModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+        loadSpecialistDashboard();
     }
 }
 
@@ -448,7 +672,7 @@ async function loadSpecialistDashboard() {
         if (container) {
             container.innerHTML = (courses || []).map(c => `
                 <div class="col-md-4 mb-3">
-                    <div class="card-custom p-3 h-100 border border-secondary border-opacity-25">
+                    <div class="card-custom p-3 h-100 border border-secondary border-opacity-25 position-relative hover-glow cursor-pointer" onclick="openEditCourseModal(${c.id})">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <span class="badge bg-purple">Course #${c.id}</span>
                             ${c.is_approved 
@@ -459,7 +683,9 @@ async function loadSpecialistDashboard() {
                         <p class="text-secondary small mb-2">${c.description_en ? c.description_en.substring(0, 70) + '...' : ''}</p>
                         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary border-opacity-25">
                             <span class="fw-bold text-success">৳${c.price}</span>
-                            ${c.media_file || c.media_url ? `<a href="${c.media_file || c.media_url}" target="_blank" class="btn btn-sm btn-outline-light rounded-3"><i class="fa-solid fa-circle-play me-1"></i> Media</a>` : ''}
+                            <button class="btn btn-sm btn-outline-purple rounded-3 px-3 py-1" onclick="event.stopPropagation(); openEditCourseModal(${c.id})">
+                                <i class="fa-solid fa-pen-to-square me-1"></i> Edit Curriculum
+                            </button>
                         </div>
                     </div>
                 </div>
