@@ -46,6 +46,14 @@ function logoutAdmin() {
     window.location.href = 'login.html';
 }
 
+function switchAdminTab(targetTabId) {
+    const tabBtn = document.querySelector(`[data-bs-target="#${targetTabId}"]`);
+    if (tabBtn) {
+        const tab = new bootstrap.Tab(tabBtn);
+        tab.show();
+    }
+}
+
 async function verifyDoctor(id) {
     const token = localStorage.getItem('admin_token');
     try {

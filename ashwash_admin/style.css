@@ -48,6 +48,13 @@ body {
     background: linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.9));
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 16px; padding: 20px;
+    cursor: pointer;
+    transition: all 0.25s ease-in-out;
+}
+.stat-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(59, 130, 246, 0.6);
+    box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.35);
 }
 .stat-icon {
     width: 48px; height: 48px; border-radius: 12px;

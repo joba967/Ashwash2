@@ -33,7 +33,7 @@
         <!-- KPI Metrics Row -->
         <div class="row g-3 mb-4">
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="switchAdminTab('users-tab')" title="Click to view Patients table">
                     <div>
                         <div class="text-secondary small fw-semibold">Total Patients</div>
                         <div class="fs-3 fw-bold text-white" id="statPatients">0</div>
@@ -42,7 +42,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="switchAdminTab('specialists-tab')" title="Click to view Specialists table">
                     <div>
                         <div class="text-secondary small fw-semibold">Specialists</div>
                         <div class="fs-3 fw-bold text-white" id="statSpecialists">0</div>
@@ -51,7 +51,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="switchAdminTab('courses-admin-tab')" title="Click to view Courses">
                     <div>
                         <div class="text-secondary small fw-semibold">Published Courses</div>
                         <div class="fs-3 fw-bold text-white" id="statCourses">0</div>
@@ -60,7 +60,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="switchAdminTab('specialists-tab')" title="Click to view Sessions">
                     <div>
                         <div class="text-secondary small fw-semibold">Session Bookings</div>
                         <div class="fs-3 fw-bold text-white" id="statAppointments">0</div>
