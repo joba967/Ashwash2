@@ -6,13 +6,9 @@ let cachedCourses = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('adminLoginForm');
-    const manageForm = document.getElementById('manageAdminForm');
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
-    } else {
-        if (manageForm) {
-            manageForm.addEventListener('submit', handleManageAdminSubmit);
-        }
+    } else if (document.getElementById('adminTabs')) {
         const token = localStorage.getItem('admin_token');
         if (!token) {
             window.location.href = 'login.html';
@@ -49,29 +45,83 @@ async function handleLogin(e) {
     }
 }
 
-function populateAdminForm() {
-    const uObj = JSON.parse(localStorage.getItem('admin_user') || '{}');
-    document.getElementById('adminUsername').value = uObj.username || 'admin';
-    document.getElementById('adminEmail').value = uObj.email || 'admin@ashwash.com';
-    document.getElementById('adminNewPassword').value = '';
-    document.getElementById('adminConfirmPassword').value = '';
-    const alertBox = document.getElementById('manageAlertBox');
-    if (alertBox) alertBox.classList.add('d-none');
+async function loadAdminProfile() {
+    const token = localStorage.getItem('admin_token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/admin-update-profile/`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.user) {
+                const u = data.user;
+                if (document.getElementById('displayUsername')) document.getElementById('displayUsername').textContent = u.username || 'Admin User';
+                if (document.getElementById('displayEmail')) document.getElementById('displayEmail').textContent = u.email || 'admin@ashwash.com';
+                if (document.getElementById('profileUsername')) document.getElementById('profileUsername').value = u.username || '';
+                if (document.getElementById('profileEmail')) document.getElementById('profileEmail').value = u.email || '';
+                localStorage.setItem('admin_user', JSON.stringify(u));
+            }
+        }
+    } catch (_) {}
 }
 
-async function handleManageAdminSubmit(e) {
+async function handleProfileInfoSubmit(e) {
     e.preventDefault();
     const token = localStorage.getItem('admin_token');
-    const alertBox = document.getElementById('manageAlertBox');
+    const alertBox = document.getElementById('profileAlertBox');
+    const u = document.getElementById('profileUsername').value.trim();
+    const em = document.getElementById('profileEmail').value.trim();
 
-    const username = document.getElementById('adminUsername').value.trim();
-    const email = document.getElementById('adminEmail').value.trim();
-    const newPassword = document.getElementById('adminNewPassword').value.trim();
-    const confirmPassword = document.getElementById('adminConfirmPassword').value.trim();
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/admin-update-profile/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ username: u, email: em })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-4 mb-4 small';
+            alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Profile information updated successfully in database!';
+            alertBox.classList.remove('d-none');
+            loadAdminProfile();
+        } else {
+            alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-3 px-4 mb-4 small';
+            alertBox.textContent = data.error || data.detail || 'Failed to update profile info.';
+            alertBox.classList.remove('d-none');
+        }
+    } catch (_) {
+        alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-3 px-4 mb-4 small';
+        alertBox.textContent = 'Connection error. Please try again.';
+        alertBox.classList.remove('d-none');
+    }
+}
 
-    if (newPassword && newPassword !== confirmPassword) {
-        alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-2 px-3 mb-3 small';
-        alertBox.textContent = 'New passwords do not match!';
+async function handleChangePasswordSubmit(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('admin_token');
+    const alertBox = document.getElementById('profileAlertBox');
+    const currentPass = document.getElementById('currentPassword').value.trim();
+    const newPass = document.getElementById('newPassword').value.trim();
+    const confirmPass = document.getElementById('confirmPassword').value.trim();
+
+    if (!currentPass) {
+        alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-3 px-4 mb-4 small';
+        alertBox.textContent = 'Please enter your current/previous password for identity verification.';
+        alertBox.classList.remove('d-none');
+        return;
+    }
+
+    if (newPass !== confirmPass) {
+        alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-3 px-4 mb-4 small';
+        alertBox.textContent = 'New password and confirm password do not match.';
         alertBox.classList.remove('d-none');
         return;
     }
@@ -81,31 +131,23 @@ async function handleManageAdminSubmit(e) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-                username: username,
-                email: email,
-                new_password: newPassword
-            })
+            body: JSON.stringify({ current_password: currentPass, new_password: newPass })
         });
-
         const data = await res.json();
         if (res.ok) {
-            alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-2 px-3 mb-3 small';
-            alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> ' + (data.message || 'Admin credentials updated successfully in database!');
+            alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-4 mb-4 small';
+            alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> Password updated successfully in database! Please use your new password next time you log in.';
             alertBox.classList.remove('d-none');
-
-            if (data.user) {
-                localStorage.setItem('admin_user', JSON.stringify(data.user));
-            }
+            document.getElementById('changePasswordForm').reset();
         } else {
-            alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-2 px-3 mb-3 small';
-            alertBox.textContent = data.error || data.detail || 'Failed to update admin credentials.';
+            alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-3 px-4 mb-4 small';
+            alertBox.textContent = data.error || data.detail || 'Password update failed.';
             alertBox.classList.remove('d-none');
         }
     } catch (_) {
-        alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-2 px-3 mb-3 small';
+        alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-3 px-4 mb-4 small';
         alertBox.textContent = 'Connection error. Please try again.';
         alertBox.classList.remove('d-none');
     }

@@ -297,6 +297,39 @@ class AdminUsersListAPIView(APIView):
 class AdminUpdateProfileAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    def get(self, request):
+        token = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+        user = None
+        if request.user and request.user.is_authenticated:
+            user = request.user
+        elif token:
+            try:
+                from rest_framework_simplejwt.tokens import AccessToken
+                validated_token = AccessToken(token)
+                user_id = validated_token['user_id']
+                user = User.objects.get(id=user_id)
+            except Exception:
+                pass
+
+        if not user:
+            user = User.objects.filter(role=User.Role.ADMIN).first() or User.objects.filter(is_superuser=True).first()
+
+        if not user:
+            return Response({'error': 'Admin user not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email or f"{user.username}@ashwash.com",
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role or 'ADMIN',
+                'is_superuser': user.is_superuser,
+                'date_joined': user.date_joined.strftime('%B %d, %Y') if user.date_joined else 'Recently'
+            }
+        })
+
     def post(self, request):
         token = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
         user = None
@@ -320,18 +353,23 @@ class AdminUpdateProfileAPIView(APIView):
 
         new_username = request.data.get('username', '').strip()
         new_email = request.data.get('email', '').strip()
+        current_password = request.data.get('current_password', '').strip()
         new_password = request.data.get('new_password', '').strip()
 
-        if new_username:
+        if new_password:
+            if not current_password:
+                return Response({'error': 'Previous (Current) password is required to set a new password.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not user.check_password(current_password):
+                return Response({'error': 'Current password is incorrect. Please verify your previous password.'}, status=status.HTTP_400_BAD_REQUEST)
+            user.set_password(new_password)
+
+        if new_username and new_username != user.username:
             if User.objects.filter(username__iexact=new_username).exclude(id=user.id).exists():
-                return Response({'error': 'Username is already taken.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Username is already taken by another account.'}, status=status.HTTP_400_BAD_REQUEST)
             user.username = new_username
 
         if new_email:
             user.email = new_email
-
-        if new_password:
-            user.set_password(new_password)
 
         user.save()
 
