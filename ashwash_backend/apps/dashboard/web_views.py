@@ -262,6 +262,9 @@ class WebSpecialistRegisterAPIView(APIView):
         if User.objects.filter(username__iexact=u).exists():
             return Response({'detail': 'Username already taken.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if lic and lic != 'BMDC-PENDING' and SpecialistProfile.objects.filter(medical_license_number__iexact=lic).exists():
+            return Response({'detail': 'Medical license number already registered. Each specialist must have a unique license number.'}, status=status.HTTP_400_BAD_REQUEST)
+
         user = User.objects.create_user(
             username=u,
             email=e,

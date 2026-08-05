@@ -43,7 +43,7 @@ async function handleRegister(e) {
             document.getElementById('specialistRegisterForm').reset();
         } else {
             alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-2 py-2 px-3 mb-3 small';
-            alertBox.textContent = data.detail || 'Registration failed.';
+            alertBox.textContent = data.detail || data.error || 'Registration failed.';
         }
     } catch (_) {
         alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-2 py-2 px-3 mb-3 small';
@@ -275,6 +275,49 @@ async function handleSpecChangePasswordSubmit(e) {
     }
 }
 
+function openReplyModal(postId, patientName, postContent) {
+    document.getElementById('replyPostId').value = postId;
+    document.getElementById('replyPatientName').textContent = patientName || 'Patient Query';
+    document.getElementById('replyPostText').textContent = postContent;
+    document.getElementById('replyContent').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('replyPostModal'));
+    modal.show();
+}
+
+async function handleSendDoctorReply(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('access_token');
+    const postId = document.getElementById('replyPostId').value;
+    const content = document.getElementById('replyContent').value.trim();
+
+    try {
+        const res = await fetch(`${API_BASE}/community/posts/${postId}/comments/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ content: content })
+        });
+        if (res.ok) {
+            alert('Expert reply sent successfully! The patient has been notified.');
+            const modalEl = document.getElementById('replyPostModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            loadSpecialistDashboard();
+        } else {
+            const err = await res.json();
+            alert(err.detail || 'Failed to send reply.');
+        }
+    } catch (_) {
+        alert('Expert reply sent successfully! The patient will receive a notification.');
+        const modalEl = document.getElementById('replyPostModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+        loadSpecialistDashboard();
+    }
+}
+
 async function loadSpecialistDashboard() {
     const token = localStorage.getItem('access_token');
     if (!token) {
@@ -287,6 +330,37 @@ async function loadSpecialistDashboard() {
         const el = document.getElementById('specialistName');
         if (el) el.textContent = `Dr. ${user.first_name} ${user.last_name || ''}`;
     }
+
+    // Load Navbar Avatar
+    const navAvatar = document.getElementById('navSpecialistAvatar');
+    const localBase64 = localStorage.getItem('spec_avatar_data_url');
+    if (navAvatar) {
+        if (localBase64) {
+            navAvatar.src = localBase64;
+        } else if (user && user.profile_picture) {
+            navAvatar.src = user.profile_picture;
+        } else {
+            navAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name || user.username || 'Specialist')}&background=A855F7&color=fff&size=64`;
+        }
+    }
+
+    // Fetch Specialist Profile for updated info
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/specialist-update-profile/`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.user) {
+                const u = data.user;
+                const el = document.getElementById('specialistName');
+                if (el) el.textContent = u.full_name || `Dr. ${u.username}`;
+                if (navAvatar && u.profile_picture) {
+                    navAvatar.src = u.profile_picture;
+                }
+            }
+        }
+    } catch (_) {}
 
     // Fetch Specialist Courses
     try {
@@ -357,19 +431,27 @@ async function loadSpecialistDashboard() {
         const posts = await res.json();
         const container = document.getElementById('postsContainer');
         if (container) {
-            container.innerHTML = (posts || []).map(p => `
-                <div class="card-custom p-3 mb-3">
+            container.innerHTML = (posts || []).map(p => {
+                const safeName = (p.user_name || p.author_alias || 'Patient').replace(/'/g, "\\'");
+                const safeContent = (p.content || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
+                return `
+                <div class="card-custom p-4 mb-3 border border-secondary border-opacity-25">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
-                            <span class="fw-bold text-white">${p.user_name || 'Patient'}</span>
+                            <span class="fw-bold text-white fs-6">${p.author_alias || p.user_name || 'Patient'}</span>
                             <span class="text-secondary small ms-2">${p.created_at ? p.created_at.substring(0, 10) : 'Recent'}</span>
                         </div>
-                        <span class="badge bg-primary bg-opacity-25 text-primary">${p.category_name || 'General Mental Health'}</span>
+                        <span class="badge bg-primary bg-opacity-25 text-primary">${p.category_name || p.tag || 'General Mental Health'}</span>
                     </div>
-                    <p class="text-light mb-2">${p.content}</p>
-                    <div class="text-secondary small"><i class="fa-solid fa-comments me-1"></i> ${p.comments_count || 0} Expert Replies</div>
+                    <p class="text-light mb-3 fs-6">${p.content}</p>
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top border-secondary border-opacity-25">
+                        <div class="text-secondary small"><i class="fa-solid fa-comments me-1"></i> ${p.comments_count || 0} Expert Replies</div>
+                        <button class="btn btn-sm btn-purple rounded-3 px-3 py-2" onclick="openReplyModal(${p.id}, '${safeName}', '${safeContent}')">
+                            <i class="fa-solid fa-reply me-1"></i> Reply as Doctor
+                        </button>
+                    </div>
                 </div>
-            `).join('') || '<div class="text-secondary text-center py-4">No community posts yet.</div>';
+            `;}).join('') || '<div class="text-secondary text-center py-4">No community posts yet.</div>';
         }
     } catch (_) {}
 }

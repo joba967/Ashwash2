@@ -23,9 +23,12 @@
                 Ashwash Specialist Workstation
             </a>
             <div class="d-flex align-items-center gap-3">
-                <div class="text-end d-none d-md-block">
-                    <div class="fw-bold text-white fs-6" id="specialistName">Dr. Specialist</div>
-                    <div class="text-secondary small"><i class="fa-solid fa-certificate me-1 text-warning"></i> Clinical Psychologist</div>
+                <div class="d-flex align-items-center gap-2 cursor-pointer" onclick="openZoomAvatarModal()" title="Click to view full photo">
+                    <img id="navSpecialistAvatar" src="https://ui-avatars.com/api/?name=Dr+Specialist&background=A855F7&color=fff&size=64" alt="Doctor Photo" class="rounded-circle border border-2 border-purple" style="width: 42px; height: 42px; object-fit: cover;">
+                    <div class="text-end d-none d-md-block ms-1">
+                        <div class="fw-bold text-white fs-6 mb-0" id="specialistName">Dr. Specialist</div>
+                        <div class="text-secondary small" style="font-size: 11px;"><i class="fa-solid fa-certificate me-1 text-warning"></i> Clinical Psychologist</div>
+                    </div>
                 </div>
                 <a href="profile.html" class="btn btn-outline-info btn-sm rounded-3"><i class="fa-solid fa-user-gear me-1"></i> Manage Account</a>
                 <button class="btn btn-outline-danger btn-sm rounded-3" onclick="logoutSpecialist()"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</button>
@@ -77,13 +80,13 @@
         <!-- Main Navigation Tabs -->
         <ul class="nav nav-tabs mb-4 border-secondary" id="portalTabs">
             <li class="nav-item">
-                <button class="nav-link text-light active fw-bold" data-bs-toggle="tab" data-bs-target="#courses-tab"><i class="fa-solid fa-video me-2"></i> Course Studio</button>
+                <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#courses-tab"><i class="fa-solid fa-video me-2"></i> Course Studio</button>
             </li>
             <li class="nav-item">
-                <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#appointments-tab"><i class="fa-solid fa-calendar-days me-2"></i> Patient Sessions</button>
+                <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#appointments-tab"><i class="fa-solid fa-calendar-days me-2"></i> Patient Sessions</button>
             </li>
             <li class="nav-item">
-                <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#community-tab"><i class="fa-solid fa-comments me-2"></i> Community Q&A</button>
+                <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#community-tab"><i class="fa-solid fa-comments me-2"></i> Community Q&A</button>
             </li>
         </ul>
 
@@ -118,10 +121,15 @@
                 </div>
             </div>
 
-            <!-- TAB 3: COMMUNITY -->
+            <!-- TAB 3: COMMUNITY Q&A -->
             <div class="tab-pane fade" id="community-tab">
                 <div class="card-custom p-4">
-                    <h5 class="fw-bold text-white mb-3">Community Support Forum</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h5 class="fw-bold text-white mb-1"><i class="fa-solid fa-comments me-2 text-purple" style="color: #A855F7;"></i> Community Support Forum & Patient Q&A</h5>
+                            <p class="text-secondary small mb-0">Provide expert advice to patients. Your replies will be automatically delivered to the patient's account.</p>
+                        </div>
+                    </div>
                     <div id="postsContainer"></div>
                 </div>
             </div>
@@ -164,7 +172,63 @@
         </div>
     </div>
 
+    <!-- Specialist Reply Modal -->
+    <div class="modal fade" id="replyPostModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-doctor me-2 text-purple" style="color: #A855F7;"></i> Expert Reply to Patient Question</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="specReplyForm" onsubmit="handleSendDoctorReply(event)">
+                    <input type="hidden" id="replyPostId">
+                    <div class="modal-body">
+                        <div class="p-3 bg-secondary bg-opacity-10 rounded-3 mb-3 border border-secondary border-opacity-25">
+                            <div class="fw-bold text-info small mb-1" id="replyPatientName">Patient Query</div>
+                            <p class="text-light small mb-0" id="replyPostText">Question content...</p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small fw-semibold">Doctor's Expert Advice & Reply</label>
+                            <textarea id="replyContent" class="form-control text-white" rows="4" required placeholder="Type your professional medical advice or recommendation here..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-purple"><i class="fa-solid fa-paper-plane me-1"></i> Send Reply to Patient</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Zoom Full Specialist Profile Photo -->
+    <div class="modal fade" id="zoomAvatarModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content bg-dark border-secondary text-center">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold text-white"><i class="fa-solid fa-expand me-2 text-purple" style="color: #A855F7;"></i> Specialist Profile Photo (Full View)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 d-flex align-items-center justify-content-center">
+                    <img id="zoomedAvatarImg" src="" alt="Full Profile Photo" class="img-fluid rounded-4 shadow-lg border border-2 border-purple" style="max-height: 80vh; object-fit: contain;">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
+    <script>
+        function openZoomAvatarModal() {
+            const img = document.getElementById('navSpecialistAvatar') || document.getElementById('profileAvatarImg');
+            const zoomedImg = document.getElementById('zoomedAvatarImg');
+            if (img && zoomedImg) {
+                zoomedImg.src = img.src;
+                const modal = new bootstrap.Modal(document.getElementById('zoomAvatarModal'));
+                modal.show();
+            }
+        }
+    </script>
 </body>
 </html>
