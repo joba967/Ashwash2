@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (document.getElementById('adminTabs')) {
         const token = localStorage.getItem('admin_token');
         if (!token) {
-            window.location.href = 'login.html';
+            window.location.href = 'index.html';
             return;
         }
         loadAdminDashboard();
@@ -34,7 +34,7 @@ async function handleLogin(e) {
         if (res.ok && data.access) {
             localStorage.setItem('admin_token', data.access);
             localStorage.setItem('admin_user', JSON.stringify(data.user || { username: u }));
-            window.location.href = 'index.html';
+            window.location.href = 'dashboard.html';
         } else {
             alertBox.textContent = data.detail || 'Invalid admin credentials';
             alertBox.classList.remove('d-none');
@@ -48,7 +48,7 @@ async function handleLogin(e) {
 async function loadAdminProfile() {
     const token = localStorage.getItem('admin_token');
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = 'index.html';
         return;
     }
 
@@ -155,7 +155,7 @@ async function handleChangePasswordSubmit(e) {
 
 function logoutAdmin() {
     localStorage.clear();
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
 }
 
 function switchAdminTab(targetTabId) {
@@ -363,7 +363,7 @@ function filterUserTable(filterRole) {
 async function loadAdminDashboard() {
     const token = localStorage.getItem('admin_token');
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = 'index.html';
         return;
     }
     const headers = { 'Authorization': `Bearer ${token}` };
