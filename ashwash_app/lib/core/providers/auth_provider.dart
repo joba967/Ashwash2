@@ -116,66 +116,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      // STRICT ACCOUNT & PASSWORD VERIFICATION FROM PERSISTED DATABASE
-      final prefs = await SharedPreferences.getInstance();
-      final savedDbStr = prefs.getString('persisted_user_db_v2');
-      if (savedDbStr != null) {
-        final List<dynamic> decoded = jsonDecode(savedDbStr);
-        _persistedAccounts = List<Map<String, dynamic>>.from(decoded);
-      }
-
-      final match = _persistedAccounts.firstWhere(
-        (acc) {
-          final accEmail = (acc['email'] as String? ?? '').toLowerCase();
-          final accUser = (acc['username'] as String? ?? '').toLowerCase();
-          return (accEmail == input || accUser == input);
-        },
-        orElse: () => {},
-      );
-
-      if (match.isNotEmpty) {
-        // Account exists! Verify registered role isolation
-        final accRole = (match['role'] as String? ?? 'PATIENT').toUpperCase();
-        final requestedRole = role.toUpperCase();
-        if (accRole != requestedRole) {
-          final displayAccRole = accRole == 'SPECIALIST' ? 'Specialist (Doctor)' : 'Patient';
-          final displayReqRole = requestedRole == 'SPECIALIST' ? 'Specialist (Doctor)' : 'Patient';
-          _errorMessage = 'Role mismatch! This account is registered as a $displayAccRole. Please select $displayAccRole role to log in.';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-
-        // Verify password
-        final accPass = match['password'] as String? ?? '';
-        if (password.isNotEmpty && accPass.isNotEmpty && accPass != password) {
-          _errorMessage = 'Incorrect password! Please try again.';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-
-        // Credentials & Role match!
-        _currentUser = UserModel(
-          id: match['id'] ?? DateTime.now().millisecondsSinceEpoch,
-          email: match['email'] ?? emailOrUsername,
-          username: match['username'] ?? emailOrUsername.split('@').first,
-          firstName: match['first_name'] ?? (accRole == 'SPECIALIST' ? 'Dr. Mekhala' : 'Ashwash'),
-          lastName: match['last_name'] ?? (accRole == 'SPECIALIST' ? 'Sarkar' : 'User'),
-          role: accRole,
-          phone: match['phone'],
-          preferredCategory: match['preferred_category'] ?? 'First Time Mother',
-        );
-
-        await prefs.setString('saved_user_role', _currentUser!.role);
-        await prefs.setString('saved_user_email', _currentUser!.email);
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-
-      // If user is not found in database or registered accounts, STRICTLY DENY LOGIN
-      _errorMessage = 'Account does not exist! Please register/sign up an account first.';
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -228,16 +169,11 @@ class AuthProvider with ChangeNotifier {
         _currentUser = UserModel.fromJson(data['user']);
       }
     } catch (e) {
-      // Fallback local registration
-      _currentUser = UserModel.fromJson(newAccMap);
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
-
-    // PERSIST ACCOUNT TO DEVICE STORAGE DATABASE
-    final prefs = await SharedPreferences.getInstance();
-    _persistedAccounts.add(newAccMap);
-    await prefs.setString('persisted_user_db_v2', jsonEncode(_persistedAccounts));
-    await prefs.setString('saved_user_role', _currentUser?.role ?? role);
-    await prefs.setString('saved_user_email', _currentUser?.email ?? cleanEmail);
 
     _isLoading = false;
     notifyListeners();
@@ -270,19 +206,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      final match = _persistedAccounts.firstWhere(
-        (acc) => (acc['email'] as String).toLowerCase() == email.toLowerCase(),
-        orElse: () => {},
-      );
-
-      if (match.isNotEmpty) {
-        _currentUser = UserModel.fromJson(match);
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-
-      _errorMessage = 'Account does not exist for Google login! Please sign up first.';
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -315,7 +239,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = 'Account does not exist! Please register first.';
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;

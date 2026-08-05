@@ -42,28 +42,28 @@ class ApiService {
   }) async {
     final headers = await _getHeaders(requireAuth: requireAuth);
 
-    // Try current active host first
     final primaryUrl = _buildUrl(originalUrl, _activeHost);
+    http.Response? response;
     try {
-      final response = await requestFn(primaryUrl, headers).timeout(const Duration(seconds: 4));
-      return _processResponse(response);
+      response = await requestFn(primaryUrl, headers).timeout(const Duration(seconds: 4));
     } catch (_) {
-      // Primary host failed, try all candidate hosts automatically
       for (final host in _candidateHosts) {
         if (host == _activeHost) continue;
         try {
           final fallbackUrl = _buildUrl(originalUrl, host);
-          final response = await requestFn(fallbackUrl, headers).timeout(const Duration(seconds: 4));
-          final result = _processResponse(response);
-
-          // Update active host for all future requests
+          response = await requestFn(fallbackUrl, headers).timeout(const Duration(seconds: 4));
           _activeHost = host;
           ApiConfig.setCustomBaseUrl(host);
-          return result;
+          break;
         } catch (_) {}
       }
+    }
+
+    if (response == null) {
       throw Exception('Server Connection Error. Ensure Django backend is running on port 8000.');
     }
+
+    return _processResponse(response);
   }
 
   static Future<dynamic> get(String url, {bool requireAuth = true}) async {
