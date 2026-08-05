@@ -275,24 +275,63 @@ function openSpecialistsModal() {
     modal.show();
 }
 
-// Modal Trigger 3: Open Dedicated Courses Directory Popup
-function openCoursesModal() {
-    const container = document.getElementById('coursesModalContainer');
-    if (container) {
-        container.innerHTML = (cachedCourses || []).map(c => `
-            <div class="col-md-6">
-                <div class="card-custom p-3 h-100">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <span class="badge bg-primary">ID: #${c.id}</span>
-                        <span class="fw-bold text-success">৳${c.price}</span>
-                    </div>
-                    <h6 class="fw-bold text-white mb-1">${c.title_en}</h6>
-                    <p class="text-secondary small mb-2">${c.description_en ? c.description_en.substring(0, 80) + '...' : ''}</p>
-                    <div class="small text-secondary">Instructor: ${c.instructor_name || 'Specialist Doctor'}</div>
-                </div>
-            </div>
-        `).join('') || '<div class="col-12 text-secondary text-center py-4">No published courses found.</div>';
+function renderAdminCourseCards(coursesToRender, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!coursesToRender || coursesToRender.length === 0) {
+        container.innerHTML = '<div class="col-12 text-secondary text-center py-4"><i class="fa-solid fa-folder-open fs-2 mb-2 d-block"></i> No courses found in this view.</div>';
+        return;
     }
+
+    container.innerHTML = coursesToRender.map(c => `
+        <div class="col-md-4 mb-3">
+            <div class="card-custom p-3 h-100 border border-secondary border-opacity-25">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="badge bg-primary">ID: #${c.id}</span>
+                    ${c.is_approved 
+                        ? '<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Approved & Live</span>' 
+                        : '<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i> Pending Approval</span>'}
+                </div>
+                <h6 class="fw-bold text-white mb-1">${c.title_en || c.title_bn}</h6>
+                <p class="text-secondary small mb-2">${c.description_en ? c.description_en.substring(0, 70) + '...' : ''}</p>
+                <div class="small text-secondary mb-1">Instructor: <span class="text-white fw-semibold">${c.instructor_details?.name || 'Specialist Doctor'}</span></div>
+                <div class="small text-secondary mb-3">Price: <span class="text-success fw-bold">৳${c.price}</span></div>
+                ${!c.is_approved 
+                    ? `<button class="btn btn-sm btn-success rounded-3 w-100 fw-bold py-2" onclick="approveCourse(${c.id})"><i class="fa-solid fa-circle-check me-1"></i> Approve & Publish to Patients</button>` 
+                    : '<span class="text-secondary small d-block text-center bg-dark py-2 rounded-2"><i class="fa-solid fa-circle-check me-1 text-success"></i> Live in Patient App</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterAdminCourses(filterType) {
+    if (filterType === 'PENDING') {
+        const pending = cachedCourses.filter(c => !c.is_approved);
+        renderAdminCourseCards(pending, 'coursesAdminContainer');
+    } else if (filterType === 'APPROVED') {
+        const approved = cachedCourses.filter(c => c.is_approved);
+        renderAdminCourseCards(approved, 'coursesAdminContainer');
+    } else {
+        renderAdminCourseCards(cachedCourses, 'coursesAdminContainer');
+    }
+}
+
+function filterModalCourses(filterType) {
+    if (filterType === 'PENDING') {
+        const pending = cachedCourses.filter(c => !c.is_approved);
+        renderAdminCourseCards(pending, 'coursesModalContainer');
+    } else if (filterType === 'APPROVED') {
+        const approved = cachedCourses.filter(c => c.is_approved);
+        renderAdminCourseCards(approved, 'coursesModalContainer');
+    } else {
+        renderAdminCourseCards(cachedCourses, 'coursesModalContainer');
+    }
+}
+
+// Modal Trigger 3: Open Dedicated Course Approval Requests Popup
+function openCoursesModal() {
+    filterModalCourses('PENDING');
     const modal = new bootstrap.Modal(document.getElementById('coursesModal'));
     modal.show();
 }
@@ -400,6 +439,9 @@ async function loadAdminDashboard() {
             document.getElementById('statSpecialists').textContent = m.total_specialists || 0;
             document.getElementById('statCourses').textContent = m.total_courses || 0;
             document.getElementById('statAppointments').textContent = m.total_appointments || 0;
+            if (document.getElementById('badgePendingCourses')) {
+                document.getElementById('badgePendingCourses').textContent = m.pending_courses || 0;
+            }
         }
     } catch (_) {}
 
@@ -449,26 +491,6 @@ async function loadAdminDashboard() {
         const res = await fetch(`${API_BASE}/courses/?show_all=true`);
         const courses = await res.json();
         cachedCourses = courses || [];
-        const container = document.getElementById('coursesAdminContainer');
-        if (container) {
-            container.innerHTML = (cachedCourses || []).map(c => `
-                <div class="col-md-4 mb-3">
-                    <div class="card-custom p-3 h-100">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="badge bg-primary">ID: #${c.id}</span>
-                            ${c.is_approved 
-                                ? '<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Approved</span>' 
-                                : '<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i> Pending Approval</span>'}
-                        </div>
-                        <h6 class="fw-bold text-white mb-1">${c.title_en}</h6>
-                        <p class="text-secondary small mb-2">${c.description_en ? c.description_en.substring(0, 60) + '...' : ''}</p>
-                        <div class="small text-secondary mb-2">Price: <span class="text-success fw-bold">৳${c.price}</span></div>
-                        ${!c.is_approved 
-                            ? `<button class="btn btn-sm btn-success rounded-3 w-100 mt-2" onclick="approveCourse(${c.id})"><i class="fa-solid fa-circle-check me-1"></i> Approve & Publish to Patients</button>` 
-                            : '<span class="text-secondary small"><i class="fa-solid fa-circle-check me-1 text-success"></i> Live in Patient App</span>'}
-                    </div>
-                </div>
-            `).join('') || '<div class="col-12 text-secondary text-center py-4">No published courses found.</div>';
-        }
+        filterAdminCourses('PENDING');
     } catch (_) {}
 }

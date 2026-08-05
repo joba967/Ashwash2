@@ -185,6 +185,7 @@ class AdminMetricsAPIView(APIView):
             'total_appointments': Appointment.objects.count(),
             'total_posts': Post.objects.count(),
             'pending_verifications': SpecialistProfile.objects.filter(is_profile_complete=False).count(),
+            'pending_courses': Course.objects.filter(is_approved=False).count(),
         }
         return Response(data)
 

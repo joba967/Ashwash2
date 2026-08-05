@@ -34,7 +34,7 @@
         <!-- KPI Metrics Row (Clickable Cards) -->
         <div class="row g-3 mb-4">
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openPatientsModal()" title="Click to view Patients Table">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openPatientsModal()" title="Click to view Patients Directory">
                     <div>
                         <div class="text-secondary small fw-semibold">Total Patients</div>
                         <div class="fs-3 fw-bold text-white" id="statPatients">0</div>
@@ -43,7 +43,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openSpecialistsModal()" title="Click to view Specialists Table">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openSpecialistsModal()" title="Click to view Specialists Directory">
                     <div>
                         <div class="text-secondary small fw-semibold">Specialists</div>
                         <div class="fs-3 fw-bold text-white" id="statSpecialists">0</div>
@@ -52,9 +52,9 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openCoursesModal()" title="Click to view Courses">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openCoursesModal()" title="Click to view Course Approval Requests">
                     <div>
-                        <div class="text-secondary small fw-semibold">Published Courses</div>
+                        <div class="text-secondary small fw-semibold">Courses Governance</div>
                         <div class="fs-3 fw-bold text-white" id="statCourses">0</div>
                     </div>
                     <div class="stat-icon bg-info bg-opacity-25 text-info"><i class="fa-solid fa-book-open"></i></div>
@@ -80,7 +80,9 @@
                 <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#users-tab"><i class="fa-solid fa-user-gear me-2"></i> User Access Control</button>
             </li>
             <li class="nav-item">
-                <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#courses-admin-tab"><i class="fa-solid fa-book me-2"></i> Course Governance</button>
+                <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#courses-admin-tab">
+                    <i class="fa-solid fa-book-open-reader me-2 text-warning"></i> Course Approval Requests <span class="badge bg-danger rounded-pill ms-1" id="badgePendingCourses">0</span>
+                </button>
             </li>
         </ul>
 
@@ -137,10 +139,21 @@
                 </div>
             </div>
 
-            <!-- TAB 3: COURSES -->
+            <!-- TAB 3: COURSE APPROVAL REQUESTS & GOVERNANCE -->
             <div class="tab-pane fade" id="courses-admin-tab">
                 <div class="card-custom p-4">
-                    <h5 class="fw-bold text-white mb-3">Course Governance & Moderation</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h5 class="fw-bold text-white mb-1"><i class="fa-solid fa-book-open-reader me-2 text-warning"></i> Course Approval Requests & Governance</h5>
+                            <p class="text-secondary small mb-0">Review courses submitted by specialists. Once approved, the course will be published to the main database and visible to patients.</p>
+                        </div>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-warning active" onclick="filterAdminCourses('PENDING')"><i class="fa-solid fa-clock me-1"></i> Pending Approval Requests</button>
+                            <button type="button" class="btn btn-outline-success" onclick="filterAdminCourses('APPROVED')"><i class="fa-solid fa-circle-check me-1"></i> Approved & Live</button>
+                            <button type="button" class="btn btn-outline-light" onclick="filterAdminCourses('ALL')">All Courses</button>
+                        </div>
+                    </div>
+
                     <div class="row g-3" id="coursesAdminContainer"></div>
                 </div>
             </div>
@@ -206,15 +219,23 @@
         </div>
     </div>
 
-    <!-- Modal 3: Dedicated Courses Directory -->
+    <!-- Modal 3: Dedicated Course Approval Requests & Published Directory -->
     <div class="modal fade" id="coursesModal" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content bg-dark text-white border-secondary">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title fw-bold text-info"><i class="fa-solid fa-book-open me-2"></i> Published Courses Directory</h5>
+                    <h5 class="modal-title fw-bold text-warning"><i class="fa-solid fa-book-open-reader me-2"></i> Course Approval Requests & Published Directory</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-secondary mb-0">Review pending specialist requests and live platform courses</h6>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-warning active" onclick="filterModalCourses('PENDING')">Pending Requests</button>
+                            <button type="button" class="btn btn-outline-success" onclick="filterModalCourses('APPROVED')">Approved & Live</button>
+                            <button type="button" class="btn btn-outline-light" onclick="filterModalCourses('ALL')">All</button>
+                        </div>
+                    </div>
                     <div class="row g-3" id="coursesModalContainer"></div>
                 </div>
             </div>
