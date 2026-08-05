@@ -274,3 +274,22 @@ class WebSpecialistRegisterAPIView(APIView):
             is_profile_complete=False # PENDING APPROVAL!
         )
         return Response({'message': 'Specialist application submitted. Pending admin approval.'}, status=status.HTTP_201_CREATED)
+
+class AdminUsersListAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        users = User.objects.all().order_by('-date_joined')
+        data = []
+        for u in users:
+            data.append({
+                'id': u.id,
+                'username': u.username,
+                'email': u.email or f"{u.username}@ashwash.com",
+                'first_name': u.first_name,
+                'last_name': u.last_name,
+                'role': u.role,
+                'is_active': u.is_active,
+                'date_joined': u.date_joined.strftime('%Y-%m-%d %H:%M') if u.date_joined else 'Recently',
+            })
+        return Response(data)

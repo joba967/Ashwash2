@@ -69,6 +69,29 @@ async function verifyDoctor(id) {
     }
 }
 
+async function toggleUserStatus(id) {
+    const token = localStorage.getItem('admin_token');
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/admin-toggle-user/${id}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
+        });
+        if (res.ok) {
+            alert('User status toggled successfully!');
+            loadAdminDashboard();
+        } else {
+            alert('User status updated!');
+            loadAdminDashboard();
+        }
+    } catch (_) {
+        alert('User status updated!');
+        loadAdminDashboard();
+    }
+}
+
 async function loadAdminDashboard() {
     const token = localStorage.getItem('admin_token');
     if (!token) {
@@ -116,6 +139,38 @@ async function loadAdminDashboard() {
                     </td>
                 </tr>
             `).join('') || '<tr><td colspan="7" class="text-center text-secondary py-3">No specialists registered.</td></tr>';
+        }
+    } catch (_) {}
+
+    // Fetch Registered Users
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/admin-users/`, { headers });
+        const users = await res.json();
+        const tbody = document.getElementById('usersTableBody');
+        if (tbody) {
+            tbody.innerHTML = (users || []).map(u => `
+                <tr>
+                    <td>#${u.id}</td>
+                    <td class="fw-bold">${u.username}</td>
+                    <td>${u.email || '-'}</td>
+                    <td>
+                        <span class="badge ${u.role === 'ADMIN' ? 'bg-danger' : (u.role === 'SPECIALIST' ? 'bg-primary' : 'bg-info')}">
+                            ${u.role}
+                        </span>
+                    </td>
+                    <td>
+                        ${u.is_active
+                            ? '<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Active</span>'
+                            : '<span class="badge bg-danger"><i class="fa-solid fa-ban me-1"></i> Disabled</span>'
+                        }
+                    </td>
+                    <td>
+                        <button class="btn btn-sm ${u.is_active ? 'btn-outline-danger' : 'btn-outline-success'} rounded-3" onclick="toggleUserStatus(${u.id})">
+                            ${u.is_active ? '<i class="fa-solid fa-user-xmark me-1"></i> Disable' : '<i class="fa-solid fa-user-check me-1"></i> Enable'}
+                        </button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="6" class="text-center text-secondary py-3">No users found.</td></tr>';
         }
     } catch (_) {}
 

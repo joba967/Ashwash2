@@ -56,3 +56,28 @@ body {
 .table-custom { color: #F8FAFC; }
 .table-custom th { background: #0F172A; color: #94A3B8; border-bottom: 1px solid rgba(255,255,255,0.1); }
 .table-custom td { border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+
+/* Custom Tab Styling for Crystal Clear Visibility */
+.nav-tabs {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    gap: 8px;
+}
+.nav-tabs .nav-link {
+    color: #94A3B8 !important;
+    background: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 10px 22px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease-in-out;
+}
+.nav-tabs .nav-link:hover {
+    color: #F8FAFC !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+.nav-tabs .nav-link.active {
+    color: #FFFFFF !important;
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
+    border: 1px solid #3B82F6 !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4) !important;
+}
