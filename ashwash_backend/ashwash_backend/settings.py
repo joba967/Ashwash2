@@ -75,16 +75,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ashwash_backend.wsgi.application'
 
-# --- Database Configuration (MySQL Local, PostgreSQL on Render) ---
-import dj_database_url
-
-DATABASES = {
-    'default': dj_database_url.config(
-        default='mysql://root:@127.0.0.1:3306/ashwash_db',
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
+try:
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(
+            default='mysql://root:@127.0.0.1:3306/ashwash_db',
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+except ImportError:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 AUTH_USER_MODEL = 'authentication.User'
