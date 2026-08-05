@@ -159,3 +159,23 @@ body {
 .nav-tabs .nav-link.active i {
     color: #FFFFFF !important;
 }
+
+/* Scrollable Modal Styling */
+.modal-dialog-scrollable .modal-body {
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+}
+.modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+.modal-body::-webkit-scrollbar-track {
+    background: #0F172A;
+    border-radius: 4px;
+}
+.modal-body::-webkit-scrollbar-thumb {
+    background: #A855F7;
+    border-radius: 4px;
+}
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #9333EA;
+}
