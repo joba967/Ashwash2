@@ -6,9 +6,13 @@ let cachedCourses = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('adminLoginForm');
+    const manageForm = document.getElementById('manageAdminForm');
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     } else {
+        if (manageForm) {
+            manageForm.addEventListener('submit', handleManageAdminSubmit);
+        }
         const token = localStorage.getItem('admin_token');
         if (!token) {
             window.location.href = 'login.html';
@@ -41,6 +45,68 @@ async function handleLogin(e) {
         }
     } catch (err) {
         alertBox.textContent = 'Connection error. Please ensure Django server is running.';
+        alertBox.classList.remove('d-none');
+    }
+}
+
+function populateAdminForm() {
+    const uObj = JSON.parse(localStorage.getItem('admin_user') || '{}');
+    document.getElementById('adminUsername').value = uObj.username || 'admin';
+    document.getElementById('adminEmail').value = uObj.email || 'admin@ashwash.com';
+    document.getElementById('adminNewPassword').value = '';
+    document.getElementById('adminConfirmPassword').value = '';
+    const alertBox = document.getElementById('manageAlertBox');
+    if (alertBox) alertBox.classList.add('d-none');
+}
+
+async function handleManageAdminSubmit(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('admin_token');
+    const alertBox = document.getElementById('manageAlertBox');
+
+    const username = document.getElementById('adminUsername').value.trim();
+    const email = document.getElementById('adminEmail').value.trim();
+    const newPassword = document.getElementById('adminNewPassword').value.trim();
+    const confirmPassword = document.getElementById('adminConfirmPassword').value.trim();
+
+    if (newPassword && newPassword !== confirmPassword) {
+        alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-2 px-3 mb-3 small';
+        alertBox.textContent = 'New passwords do not match!';
+        alertBox.classList.remove('d-none');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/admin-update-profile/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+                username: username,
+                email: email,
+                new_password: newPassword
+            })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-2 px-3 mb-3 small';
+            alertBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i> ' + (data.message || 'Admin credentials updated successfully in database!');
+            alertBox.classList.remove('d-none');
+
+            if (data.user) {
+                localStorage.setItem('admin_user', JSON.stringify(data.user));
+            }
+        } else {
+            alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-2 px-3 mb-3 small';
+            alertBox.textContent = data.error || data.detail || 'Failed to update admin credentials.';
+            alertBox.classList.remove('d-none');
+        }
+    } catch (_) {
+        alertBox.className = 'alert alert-danger border-0 bg-danger bg-opacity-25 text-danger rounded-3 py-2 px-3 mb-3 small';
+        alertBox.textContent = 'Connection error. Please try again.';
         alertBox.classList.remove('d-none');
     }
 }
