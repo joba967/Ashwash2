@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from .models import Category, SpecialistProfile
+from .models import Category, SpecialistProfile, PatientProfile
 
 User = get_user_model()
 
