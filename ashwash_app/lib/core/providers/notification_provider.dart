@@ -24,14 +24,14 @@ class NotificationModel {
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
-      id: json['id'],
-      title: json['title'],
-      body: json['body'],
-      type: json['notification_type'],
-      isRead: json['is_read'],
-      createdAt: json['created_at'],
-      relatedObjectId: json['related_object_id'],
-      relatedObjectType: json['related_object_type'],
+      id: json['id'] ?? 0,
+      title: json['title'] ?? 'Ashwash Notification',
+      body: json['body'] ?? '',
+      type: json['notification_type'] ?? 'GENERAL',
+      isRead: json['is_read'] ?? false,
+      createdAt: json['created_at'] ?? DateTime.now().toIso8601String(),
+      relatedObjectId: json['related_object_id']?.toString(),
+      relatedObjectType: json['related_object_type']?.toString(),
     );
   }
 }
@@ -51,7 +51,7 @@ class NotificationProvider extends ChangeNotifier {
       _unreadCount = response['unread_count'] ?? 0;
       notifyListeners();
     } catch (e) {
-      print("Failed to fetch unread count: \$e");
+      debugPrint("Failed to fetch unread count: $e");
     }
   }
 
@@ -59,12 +59,11 @@ class NotificationProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final response = await ApiService.get('/api/notifications/');
-      if (response is List) {
-        _notifications = response.map((e) => NotificationModel.fromJson(e)).toList();
-      }
+      final listData = await ApiService.getList('/api/notifications/');
+      _notifications = listData.map((e) => NotificationModel.fromJson(e as Map<String, dynamic>)).toList();
+      _unreadCount = _notifications.where((n) => !n.isRead).length;
     } catch (e) {
-      print("Failed to fetch notifications: \$e");
+      debugPrint("Failed to fetch notifications: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -73,7 +72,7 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> markAsRead(int id) async {
     try {
-      await ApiService.post('/api/notifications/\$id/read/', {});
+      await ApiService.post('/api/notifications/$id/read/', {});
       final index = _notifications.indexWhere((n) => n.id == id);
       if (index != -1) {
         final notif = _notifications[index];
@@ -87,11 +86,11 @@ class NotificationProvider extends ChangeNotifier {
           relatedObjectId: notif.relatedObjectId,
           relatedObjectType: notif.relatedObjectType,
         );
-        _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
+        _unreadCount = _notifications.where((n) => !n.isRead).length;
         notifyListeners();
       }
     } catch (e) {
-      print("Failed to mark as read: \$e");
+      debugPrint("Failed to mark as read: $e");
     }
   }
 
@@ -114,7 +113,30 @@ class NotificationProvider extends ChangeNotifier {
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {
-      print("Failed to mark all as read: \$e");
+      debugPrint("Failed to mark all as read: $e");
+    }
+  }
+
+  Future<void> deleteNotification(int id) async {
+    try {
+      await ApiService.delete('/api/notifications/$id/');
+      _notifications.removeWhere((n) => n.id == id);
+      _unreadCount = _notifications.where((n) => !n.isRead).length;
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Failed to delete notification: $e");
+    }
+  }
+
+  Future<void> deleteAllNotifications() async {
+    try {
+      await ApiService.delete('/api/notifications/delete-all/');
+      _notifications.clear();
+      _unreadCount = 0;
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Failed to delete all notifications: $e");
     }
   }
 }
+

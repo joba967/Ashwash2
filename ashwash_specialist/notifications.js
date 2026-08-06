@@ -1,4 +1,9 @@
-const API_BASE_URL = 'https://ashwash-backend.onrender.com';
+// Ashwash Specialist Notification System
+const SPEC_NOTIF_API_BASE = 'https://ashwash-backend.onrender.com';
+
+function getSpecialistToken() {
+    return localStorage.getItem('access_token') || localStorage.getItem('specialist_token') || localStorage.getItem('token');
+}
 
 // Real Firebase Config
 const firebaseConfig = {
@@ -11,107 +16,329 @@ const firebaseConfig = {
 };
 
 try {
-    firebase.initializeApp(firebaseConfig);
-    const messaging = firebase.messaging();
+    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const messaging = (typeof firebase !== 'undefined' && firebase.messaging) ? firebase.messaging() : null;
 
     // Request Permission
     function requestNotificationPermission() {
-        console.log('Requesting permission...');
+        if (!('Notification' in window) || !messaging) return;
         Notification.requestPermission().then((permission) => {
             if (permission === 'granted') {
-                console.log('Notification permission granted.');
-                // Get token
                 messaging.getToken().then((currentToken) => {
                     if (currentToken) {
-                        console.log('FCM Token:', currentToken);
                         sendTokenToServer(currentToken);
-                    } else {
-                        console.log('No registration token available.');
                     }
                 }).catch((err) => {
-                    console.log('An error occurred while retrieving token. ', err);
+                    console.log('Firebase token error:', err);
                 });
-            } else {
-                console.log('Unable to get permission to notify.');
             }
         });
     }
 
     // Send Token to Django Backend
     function sendTokenToServer(token) {
-        const specToken = localStorage.getItem('access_token');
+        const specToken = getSpecialistToken();
         if (!specToken) return;
 
-        fetch(`\${API_BASE_URL}/api/notifications/register-device/`, {
+        fetch(`${SPEC_NOTIF_API_BASE}/api/notifications/register-device/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer \${specToken}`
+                'Authorization': `Bearer ${specToken}`
             },
             body: JSON.stringify({ fcm_token: token, device_type: 'web' })
         })
         .then(res => res.json())
-        .then(data => console.log('Device registered on backend'))
-        .catch(err => console.error('Error registering device', err));
+        .catch(err => console.log('Device register error:', err));
     }
 
     // Listen for foreground messages
-    messaging.onMessage((payload) => {
-        console.log('Message received. ', payload);
-        // Show a toast or update UI
-        showNotificationToast(payload.notification.title, payload.notification.body);
-        fetchUnreadCount();
-    });
-
-    function showNotificationToast(title, body) {
-        const toastHTML = `
-            <div class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true" id="notifToast">
-              <div class="d-flex">
-                <div class="toast-body">
-                  <strong>\${title}</strong><br>\${body}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-              </div>
-            </div>
-        `;
-        const toastContainer = document.getElementById('toastContainer');
-        if (toastContainer) {
-            toastContainer.innerHTML += toastHTML;
-            const toastEl = new bootstrap.Toast(document.getElementById('notifToast'));
-            toastEl.show();
-        }
-    }
-
-    // Fetch notifications list
-    function fetchUnreadCount() {
-        const specToken = localStorage.getItem('access_token');
-        if (!specToken) return;
-
-        fetch(`\${API_BASE_URL}/api/notifications/count/`, {
-            headers: { 'Authorization': `Bearer \${specToken}` }
-        })
-        .then(res => res.json())
-        .then(data => {
-            const badge = document.getElementById('notificationBadge');
-            if (badge) {
-                if (data.unread_count > 0) {
-                    badge.textContent = data.unread_count;
-                    badge.classList.remove('d-none');
-                } else {
-                    badge.classList.add('d-none');
-                }
+    if (messaging) {
+        messaging.onMessage((payload) => {
+            const title = payload.notification?.title || payload.data?.title || 'New Notification';
+            const body = payload.notification?.body || payload.data?.body || '';
+            showNotificationToast(title, body);
+            fetchUnreadCount();
+            const panel = document.getElementById('notificationsPanel');
+            if (panel && panel.classList.contains('show')) {
+                loadNotifications();
             }
         });
     }
+} catch (e) {
+    console.warn("Firebase Push disabled or fallback mode:", e);
+}
 
-    // Initialize on load if logged in
-    document.addEventListener('DOMContentLoaded', () => {
-        if (localStorage.getItem('access_token')) {
-            requestNotificationPermission();
-            fetchUnreadCount();
+function showNotificationToast(title, body) {
+    const toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) return;
+    const toastId = 'toast_' + Date.now();
+    const toastHTML = `
+        <div class="toast align-items-center text-white bg-dark border border-primary border-opacity-50 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" id="${toastId}" data-bs-autohide="true" data-bs-delay="6000">
+          <div class="d-flex">
+            <div class="toast-body d-flex align-items-start gap-2">
+              <span class="text-primary fs-5"><i class="fa-solid fa-bell"></i></span>
+              <div>
+                <strong class="text-white">${title}</strong>
+                <div class="text-secondary small mt-1">${body}</div>
+              </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+    `;
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    const toastEl = document.getElementById(toastId);
+    if (toastEl && typeof bootstrap !== 'undefined') {
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+}
+
+// Fetch notifications count
+function fetchUnreadCount() {
+    const token = getSpecialistToken();
+    if (!token) return;
+
+    fetch(`${SPEC_NOTIF_API_BASE}/api/notifications/count/`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+        const badge = document.getElementById('notificationBadge');
+        if (badge) {
+            const count = data.unread_count || 0;
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.remove('d-none');
+            } else {
+                badge.classList.add('d-none');
+            }
+        }
+    })
+    .catch(() => {});
+}
+
+// Open Notifications Drawer
+function openNotificationsPanel() {
+    const panelEl = document.getElementById('notificationsPanel');
+    if (panelEl && typeof bootstrap !== 'undefined') {
+        const bsOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(panelEl);
+        bsOffcanvas.show();
+        loadNotifications();
+    }
+}
+
+function getNotificationTypeMeta(type) {
+    switch (type) {
+        case 'APPOINTMENT':
+            return { icon: 'fa-calendar-check', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)', badgeClass: 'bg-primary' };
+        case 'COURSE':
+            return { icon: 'fa-graduation-cap', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)', badgeClass: 'bg-warning text-dark' };
+        case 'COMMUNITY':
+            return { icon: 'fa-comments', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)', badgeClass: 'bg-info' };
+        case 'PROFILE':
+            return { icon: 'fa-user-check', color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)', badgeClass: 'bg-success' };
+        case 'SYSTEM':
+            return { icon: 'fa-shield-halved', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)', badgeClass: 'bg-danger' };
+        default:
+            return { icon: 'fa-bell', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)', badgeClass: 'bg-primary' };
+    }
+}
+
+function groupNotificationsByDate(items) {
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+
+    const groups = { today: [], yesterday: [], older: [] };
+    items.forEach(item => {
+        const itemDate = new Date(item.created_at).toDateString();
+        if (itemDate === todayStr) {
+            groups.today.push(item);
+        } else if (itemDate === yesterdayStr) {
+            groups.yesterday.push(item);
+        } else {
+            groups.older.push(item);
         }
     });
-
-} catch (e) {
-    console.error("Firebase not configured correctly. Skipping push notifications initialization.", e);
+    return groups;
 }
+
+function renderNotificationCard(n) {
+    const meta = getNotificationTypeMeta(n.notification_type);
+    const timeStr = new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const isUnread = !n.is_read;
+
+    return `
+        <div class="card bg-dark border ${isUnread ? 'border-primary' : 'border-secondary'} border-opacity-25 mb-2 rounded-3 shadow-sm" id="notif-card-${n.id}">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px; background: ${meta.bg}; color: ${meta.color}; font-size: 16px;">
+                        <i class="fa-solid ${meta.icon}"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="badge ${meta.badgeClass} rounded-pill px-2 py-1 small" style="font-size: 10px;">${n.notification_type || 'SYSTEM'}</span>
+                            <span class="text-secondary small" style="font-size: 11px;">${timeStr}</span>
+                        </div>
+                        <h6 class="text-white fw-bold mb-1 mt-2" style="font-size: 14px;">${n.title}</h6>
+                        <p class="text-secondary mb-2" style="font-size: 12px; line-height: 1.4;">${n.body}</p>
+                        <div class="d-flex align-items-center justify-content-between pt-1 border-top border-secondary border-opacity-25">
+                            ${isUnread ? `
+                                <button class="btn btn-link btn-sm text-primary p-0 text-decoration-none small" style="font-size: 11px;" onclick="markRead(${n.id}, event)">
+                                    <i class="fa-solid fa-check me-1"></i>Mark Read
+                                </button>
+                            ` : `<span class="text-muted small" style="font-size: 11px;"><i class="fa-solid fa-check-double me-1"></i>Read</span>`}
+                            <button class="btn btn-link btn-sm text-danger p-0 text-decoration-none small" style="font-size: 11px;" onclick="deleteNotificationItem(${n.id}, event)">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function loadNotifications() {
+    const token = getSpecialistToken();
+    if (!token) return;
+
+    const listEl = document.getElementById('notificationsList');
+    if (!listEl) return;
+
+    listEl.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <p class="text-secondary small mt-2">Loading notifications...</p>
+        </div>
+    `;
+
+    fetch(`${SPEC_NOTIF_API_BASE}/api/notifications/`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+        const items = Array.isArray(data) ? data : (data.results || []);
+        if (!items.length) {
+            listEl.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="text-secondary mb-2" style="font-size: 32px;"><i class="fa-regular fa-bell-slash"></i></div>
+                    <p class="text-secondary small">No notifications found.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const groups = groupNotificationsByDate(items);
+        let html = '';
+
+        if (groups.today.length) {
+            html += `<div class="text-secondary text-uppercase fw-bold mb-2 small" style="font-size: 11px; letter-spacing: 0.5px;"><i class="fa-regular fa-calendar-day me-1 text-primary"></i> Today</div>`;
+            html += groups.today.map(renderNotificationCard).join('');
+        }
+        if (groups.yesterday.length) {
+            html += `<div class="text-secondary text-uppercase fw-bold mb-2 mt-3 small" style="font-size: 11px; letter-spacing: 0.5px;"><i class="fa-regular fa-clock me-1 text-warning"></i> Yesterday</div>`;
+            html += groups.yesterday.map(renderNotificationCard).join('');
+        }
+        if (groups.older.length) {
+            html += `<div class="text-secondary text-uppercase fw-bold mb-2 mt-3 small" style="font-size: 11px; letter-spacing: 0.5px;"><i class="fa-regular fa-calendar-days me-1 text-secondary"></i> Older</div>`;
+            html += groups.older.map(renderNotificationCard).join('');
+        }
+
+        listEl.innerHTML = html;
+        fetchUnreadCount();
+    })
+    .catch(() => {
+        listEl.innerHTML = `
+            <div class="text-center py-4 text-danger small">
+                <i class="fa-solid fa-triangle-exclamation mb-1 fs-5"></i><br>
+                Failed to load notifications.
+            </div>
+        `;
+    });
+}
+
+function markRead(id, event) {
+    if (event) event.stopPropagation();
+    const token = getSpecialistToken();
+    if (!token) return;
+
+    fetch(`${SPEC_NOTIF_API_BASE}/api/notifications/${id}/read/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(() => {
+        const card = document.getElementById(`notif-card-${id}`);
+        if (card) {
+            card.classList.remove('border-primary');
+            card.classList.add('border-secondary');
+        }
+        loadNotifications();
+        fetchUnreadCount();
+    })
+    .catch(() => {});
+}
+
+function markAllRead() {
+    const token = getSpecialistToken();
+    if (!token) return;
+
+    fetch(`${SPEC_NOTIF_API_BASE}/api/notifications/read-all/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(() => {
+        loadNotifications();
+        fetchUnreadCount();
+    })
+    .catch(() => {});
+}
+
+function deleteNotificationItem(id, event) {
+    if (event) event.stopPropagation();
+    const token = getSpecialistToken();
+    if (!token) return;
+
+    fetch(`${SPEC_NOTIF_API_BASE}/api/notifications/${id}/`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(() => {
+        const card = document.getElementById(`notif-card-${id}`);
+        if (card) card.remove();
+        fetchUnreadCount();
+    })
+    .catch(() => {});
+}
+
+function clearAllNotifications() {
+    const token = getSpecialistToken();
+    if (!token) return;
+    if (!confirm('Are you sure you want to delete all notifications?')) return;
+
+    fetch(`${SPEC_NOTIF_API_BASE}/api/notifications/delete-all/`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(() => {
+        loadNotifications();
+        fetchUnreadCount();
+    })
+    .catch(() => {});
+}
+
+// Initial Boot & Polling
+document.addEventListener('DOMContentLoaded', () => {
+    if (getSpecialistToken()) {
+        try { requestNotificationPermission(); } catch (_) {}
+        fetchUnreadCount();
+        // Polling fallback every 20s
+        setInterval(fetchUnreadCount, 20000);
+    }
+});

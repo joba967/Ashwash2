@@ -10,6 +10,9 @@ class Notification(models.Model):
         ('PROFILE', 'Profile'),
         ('KNOWLEDGE_HUB', 'Knowledge Hub'),
         ('MIND_GAME', 'Mind Game'),
+        ('ASSESSMENT', 'Assessment'),
+        ('PAYMENT', 'Payment'),
+        ('SECURITY', 'Security'),
         ('GENERAL', 'General'),
     )
 
