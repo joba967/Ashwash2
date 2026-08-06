@@ -230,8 +230,42 @@ class AdminVerifySpecialistAPIView(APIView):
                 profile.user.is_active = True
                 profile.user.role = 'SPECIALIST'
                 profile.user.save()
+                
+                from apps.notifications.services import NotificationManager
+                NotificationManager.send_notification(
+                    receiver=profile.user,
+                    title="Specialist Profile Approved! 🎉",
+                    body="Congratulations! Your specialist application has been verified and approved by the Administrator. You can now access all portal features.",
+                    notif_type="PROFILE",
+                    related_object_id=profile.id,
+                    related_object_type="SpecialistProfile"
+                )
 
             return Response({'message': f'Specialist {profile.full_name} verified & approved successfully!', 'is_verified': True})
+        except SpecialistProfile.DoesNotExist:
+            return Response({'error': 'Specialist profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class AdminRejectSpecialistAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        try:
+            profile = SpecialistProfile.objects.get(pk=pk)
+            profile.is_profile_complete = False
+            profile.save()
+
+            if profile.user:
+                from apps.notifications.services import NotificationManager
+                NotificationManager.send_notification(
+                    receiver=profile.user,
+                    title="Specialist Application Update ⚠️",
+                    body="Your specialist verification request could not be approved at this time. Please review your credentials or contact administrator.",
+                    notif_type="PROFILE",
+                    related_object_id=profile.id,
+                    related_object_type="SpecialistProfile"
+                )
+
+            return Response({'message': f'Specialist {profile.full_name} application marked as rejected/pending.', 'is_verified': False})
         except SpecialistProfile.DoesNotExist:
             return Response({'error': 'Specialist profile not found'}, status=status.HTTP_404_NOT_FOUND)
 

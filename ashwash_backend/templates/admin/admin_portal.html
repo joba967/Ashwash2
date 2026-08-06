@@ -460,6 +460,60 @@
             }
         }
 
+        function getDateGroup(isoString) {
+            if (!isoString) return 'Older';
+            try {
+                const d = new Date(isoString);
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                const diffDays = Math.floor((today - target) / (1000 * 60 * 60 * 24));
+                if (diffDays === 0) return 'Today';
+                if (diffDays === 1) return 'Yesterday';
+                return 'Older';
+            } catch(e) {
+                return 'Older';
+            }
+        }
+
+        function handleAdminNotificationClick(id, type, relatedType, relatedId) {
+            // 1. Mark as read
+            fetch(`/api/notifications/${id}/read/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': notifCsrfToken }
+            }).then(() => {
+                fetchUnreadCount();
+            });
+
+            // 2. Hide drawer
+            const drawerEl = document.getElementById('notificationDrawer');
+            if (drawerEl) {
+                const bsOffcanvas = bootstrap.Offcanvas.getInstance(drawerEl);
+                if (bsOffcanvas) bsOffcanvas.hide();
+            }
+
+            // 3. Navigate to relevant tab
+            const upperType = (type || '').toUpperCase();
+            const upperRelated = (relatedType || '').toUpperCase();
+
+            if (upperType === 'COMMUNITY' || upperRelated === 'POST' || upperRelated === 'REPORT') {
+                const tab = document.getElementById('community-moderation-tab');
+                if (tab) tab.click();
+            } else if (upperType === 'COURSE' || upperRelated === 'COURSE') {
+                const tab = document.getElementById('courses-tab');
+                if (tab) tab.click();
+            } else if (upperType === 'PROFILE' || upperRelated === 'SPECIALISTPROFILE') {
+                const tab = document.getElementById('specialists-tab');
+                if (tab) tab.click();
+            } else if (upperType === 'SYSTEM' || upperRelated === 'USER') {
+                const tab = document.getElementById('users-tab') || document.getElementById('specialists-tab');
+                if (tab) tab.click();
+            } else {
+                const tab = document.getElementById('specialists-tab');
+                if (tab) tab.click();
+            }
+        }
+
         function loadNotifications() {
             const container = document.getElementById('notifListContainer');
             const loading = document.getElementById('notifLoadingState');
@@ -483,35 +537,58 @@
                     return;
                 }
 
-                container.innerHTML = notifs.map(n => `
-                    <div class="list-group-item bg-transparent text-white border-secondary p-3 ${!n.is_read ? 'border-start border-3 border-primary bg-dark' : ''}" style="border-bottom: 1px solid rgba(255,255,255,0.08);" id="notif-item-${n.id}">
-                        <div class="d-flex align-items-start gap-3">
-                            <div class="rounded-circle p-2 bg-dark border border-secondary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                                ${getNotifIcon(n.notification_type)}
+                // Group by Today, Yesterday, Older
+                const groups = { 'Today': [], 'Yesterday': [], 'Older': [] };
+                notifs.forEach(n => {
+                    const g = getDateGroup(n.created_at);
+                    if (groups[g]) groups[g].push(n);
+                    else groups['Older'].push(n);
+                });
+
+                let html = '';
+                ['Today', 'Yesterday', 'Older'].forEach(gName => {
+                    const list = groups[gName];
+                    if (list && list.length > 0) {
+                        html += `
+                            <div class="px-3 pt-3 pb-1 text-uppercase text-secondary fw-bold" style="font-size: 0.72rem; letter-spacing: 0.8px;">
+                                ${gName}
                             </div>
-                            <div class="flex-grow-1">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <h6 class="mb-0 fw-bold fs-6 ${!n.is_read ? 'text-white' : 'text-light'}">${n.title}</h6>
-                                    <small class="text-secondary" style="font-size: 0.75rem;">${formatNotifTime(n.created_at)}</small>
-                                </div>
-                                <p class="text-secondary small mb-2" style="font-size: 0.82rem; line-height: 1.35;">${n.body}</p>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-secondary opacity-75" style="font-size: 0.68rem;">${n.notification_type}</span>
-                                    <div class="d-flex gap-2">
-                                        ${!n.is_read ? `
-                                            <button class="btn btn-link btn-sm text-primary p-0 text-decoration-none" onclick="markNotificationRead(${n.id})" style="font-size: 0.75rem;">
-                                                <i class="fa-solid fa-check me-1"></i>Mark Read
-                                            </button>
-                                        ` : ''}
-                                        <button class="btn btn-link btn-sm text-danger p-0 text-decoration-none" onclick="deleteNotification(${n.id})" style="font-size: 0.75rem;">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
+                        `;
+                        list.forEach(n => {
+                            html += `
+                                <div class="list-group-item bg-transparent text-white border-secondary p-3 ${!n.is_read ? 'border-start border-3 border-primary bg-dark' : ''}" style="border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; transition: background 0.2s;" id="notif-item-${n.id}" onclick="handleAdminNotificationClick(${n.id}, '${n.notification_type || ''}', '${n.related_object_type || ''}', '${n.related_object_id || ''}')">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="rounded-circle p-2 bg-dark border border-secondary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px;">
+                                            ${getNotifIcon(n.notification_type)}
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <h6 class="mb-0 fw-bold fs-6 ${!n.is_read ? 'text-white' : 'text-light'}">${n.title}</h6>
+                                                <small class="text-secondary" style="font-size: 0.75rem;">${formatNotifTime(n.created_at)}</small>
+                                            </div>
+                                            <p class="text-secondary small mb-2" style="font-size: 0.82rem; line-height: 1.35;">${n.body}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge bg-secondary opacity-75" style="font-size: 0.68rem;">${n.notification_type}</span>
+                                                <div class="d-flex gap-2" onclick="event.stopPropagation();">
+                                                    ${!n.is_read ? `
+                                                        <button class="btn btn-link btn-sm text-primary p-0 text-decoration-none" onclick="markNotificationRead(${n.id})" style="font-size: 0.75rem;">
+                                                            <i class="fa-solid fa-check me-1"></i>Mark Read
+                                                        </button>
+                                                    ` : ''}
+                                                    <button class="btn btn-link btn-sm text-danger p-0 text-decoration-none" onclick="deleteNotification(${n.id})" style="font-size: 0.75rem;">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
+                            `;
+                        });
+                    }
+                });
+
+                container.innerHTML = html;
             })
             .catch(err => {
                 if (loading) loading.style.display = 'none';

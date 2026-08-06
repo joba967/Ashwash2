@@ -33,6 +33,19 @@ class NotificationManager:
         if not receiver:
             return None
 
+        # 0. Deduplication check: prevent identical notification within 5 seconds
+        from django.utils import timezone
+        from datetime import timedelta
+        recent_duplicate = Notification.objects.filter(
+            receiver=receiver,
+            title=title,
+            related_object_id=str(related_object_id) if related_object_id else None,
+            created_at__gte=timezone.now() - timedelta(seconds=5)
+        ).first()
+        if recent_duplicate:
+            logger.info(f"Duplicate notification skipped for {receiver.username}: {title}")
+            return recent_duplicate
+
         # 1. Save to Database
         notification = Notification.objects.create(
             receiver=receiver,

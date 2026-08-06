@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/providers/notification_provider.dart';
+import '../../community/community_screen.dart';
+import '../../courses/presentation/screens/course_catalog_screen.dart';
+import '../../appointments/specialist_list_screen.dart';
+import '../../knowledge_hub/knowledge_hub_screen.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -265,6 +269,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
           if (isUnread) {
             provider.markAsRead(notif.id);
           }
+          _handleNotificationNavigation(context, notif);
         },
         child: Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -368,6 +373,33 @@ class _NotificationScreenState extends State<NotificationScreen> {
         ),
       ),
     );
+  }
+
+  void _handleNotificationNavigation(BuildContext context, NotificationModel notif) {
+    final type = notif.type.toUpperCase();
+    final relType = (notif.relatedObjectType ?? '').toUpperCase();
+
+    if (type == 'COMMUNITY' || relType == 'POST' || relType == 'COMMENT') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CommunityScreen()),
+      );
+    } else if (type == 'COURSE' || relType == 'COURSE' || relType == 'ASSIGNMENT' || relType == 'CERTIFICATE') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CourseCatalogScreen()),
+      );
+    } else if (type == 'APPOINTMENT' || relType == 'APPOINTMENT' || relType == 'PRESCRIPTION') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SpecialistListScreen()),
+      );
+    } else if (type == 'KNOWLEDGE_HUB' || relType == 'RESOURCE') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const KnowledgeHubScreen()),
+      );
+    }
   }
 
   void _showClearAllDialog(BuildContext context, NotificationProvider provider) {
