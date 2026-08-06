@@ -12,7 +12,7 @@ import '../../../hub/presentation/screens/knowledge_hub_screen.dart';
 import '../../../mind_games/mind_games_hub_screen.dart';
 import '../../../courses/presentation/screens/course_catalog_screen.dart';
 import '../../../appointments/specialist_list_screen.dart';
-import '../../notifications/screens/notification_screen.dart';
+import '../../../notifications/screens/notification_screen.dart';
 import '../../../../core/providers/notification_provider.dart';
 
 class DashboardScreen extends StatefulWidget {

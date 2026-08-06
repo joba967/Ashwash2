@@ -5,7 +5,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/notification_provider.dart';
 import '../auth/presentation/screens/login_screen.dart';
-import '../notifications/notifications_screen.dart';
+import '../notifications/screens/notification_screen.dart';
 import 'settings_screen.dart';
 import 'report_screen.dart';
 

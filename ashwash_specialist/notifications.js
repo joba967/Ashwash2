@@ -21,7 +21,7 @@ try {
             if (permission === 'granted') {
                 console.log('Notification permission granted.');
                 // Get token
-                messaging.getToken({ vapidKey: 'YOUR_PUBLIC_VAPID_KEY_HERE' }).then((currentToken) => {
+                messaging.getToken().then((currentToken) => {
                     if (currentToken) {
                         console.log('FCM Token:', currentToken);
                         sendTokenToServer(currentToken);

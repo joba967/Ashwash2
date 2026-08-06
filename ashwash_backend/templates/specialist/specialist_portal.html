@@ -353,7 +353,7 @@
             function requestNotificationPermission() {
                 Notification.requestPermission().then((permission) => {
                     if (permission === 'granted') {
-                        messaging.getToken({ vapidKey: 'YOUR_PUBLIC_VAPID_KEY_HERE' }).then((currentToken) => {
+                        messaging.getToken().then((currentToken) => {
                             if (currentToken) {
                                 sendTokenToServer(currentToken);
                             }
