@@ -46,12 +46,37 @@
                 Ashwash Specialist Workstation
             </a>
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-outline-light btn-sm rounded-3 position-relative" id="notifBellBtn" onclick="openNotificationDrawer()" title="Notifications">
-                    <i class="fa-solid fa-bell"></i>
-                    <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
-                        0
-                    </span>
-                </button>
+                <!-- Notification Bell Dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-outline-light btn-sm rounded-3 position-relative" id="notifBellBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" onclick="loadNotifications()" title="Notifications">
+                        <i class="fa-solid fa-bell"></i>
+                        <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
+                            0
+                        </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg border border-secondary" style="width: 390px; max-width: 95vw; background-color: #1E293B; color: #F8FAFC; border-radius: 16px; overflow: hidden; z-index: 1200;" aria-labelledby="notifBellBtn">
+                        <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center bg-dark bg-opacity-25">
+                            <h6 class="mb-0 fw-bold text-white"><i class="fa-solid fa-bell me-2 text-primary"></i> Notifications</h6>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-info rounded-pill px-2 py-0" onclick="markAllNotificationsRead()" title="Mark all read" style="font-size: 0.75rem;">
+                                    <i class="fa-solid fa-check-double me-1"></i> Read All
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0" onclick="clearAllNotifications()" title="Clear all" style="font-size: 0.75rem;">
+                                    <i class="fa-solid fa-trash me-1"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-0" id="notifDrawerBody" style="max-height: 420px; overflow-y: auto;">
+                            <div class="text-center py-4 text-secondary" id="notifLoadingState">
+                                <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                                <div>Loading notifications...</div>
+                            </div>
+                            <div id="notifListContainer" class="list-group list-group-flush">
+                                <!-- Notifications populated here via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="text-end d-none d-md-block">
                     <div class="fw-bold text-white fs-6">{{ spec_profile.full_name }}</div>
                     <div class="text-secondary small"><i class="fa-solid fa-certificate me-1 text-warning"></i> {{ spec_profile.specialization }}</div>
@@ -333,33 +358,6 @@
         }
     </script>
     
-    <!-- Offcanvas Notifications Drawer -->
-    <div class="offcanvas offcanvas-end text-white" tabindex="-1" id="notificationDrawer" aria-labelledby="notificationDrawerLabel" style="background-color: var(--card-bg); border-left: 1px solid var(--border-color); width: 420px; max-width: 90vw;">
-        <div class="offcanvas-header border-bottom border-secondary d-flex justify-content-between align-items-center">
-            <h5 class="offcanvas-title fw-bold" id="notificationDrawerLabel">
-                <i class="fa-solid fa-bell me-2 text-primary"></i> Notifications
-            </h5>
-            <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-sm btn-outline-info rounded-pill px-2 py-0" onclick="markAllNotificationsRead()" title="Mark all read" style="font-size: 0.75rem;">
-                    <i class="fa-solid fa-check-double me-1"></i> Read All
-                </button>
-                <button class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0" onclick="clearAllNotifications()" title="Clear all" style="font-size: 0.75rem;">
-                    <i class="fa-solid fa-trash me-1"></i> Clear
-                </button>
-                <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-        </div>
-        <div class="offcanvas-body p-0" id="notifDrawerBody">
-            <div class="text-center py-5 text-secondary" id="notifLoadingState">
-                <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
-                <div>Loading notifications...</div>
-            </div>
-            <div id="notifListContainer" class="list-group list-group-flush">
-                <!-- Notifications populated here via JS -->
-            </div>
-        </div>
-    </div>
-
     <!-- Bootstrap & Chart JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -427,18 +425,6 @@
             }
         }
 
-        function openNotificationDrawer() {
-            loadNotifications();
-            const drawerEl = document.getElementById('notificationDrawer');
-            if (drawerEl) {
-                let bsOffcanvas = bootstrap.Offcanvas.getInstance(drawerEl);
-                if (!bsOffcanvas) {
-                    bsOffcanvas = new bootstrap.Offcanvas(drawerEl);
-                }
-                bsOffcanvas.show();
-            }
-        }
-
         function handleSpecialistNotificationClick(id, type, relatedType, relatedId) {
             // 1. Mark as read
             fetch(`/api/notifications/${id}/read/`, {
@@ -449,11 +435,11 @@
                 loadNotifications();
             });
 
-            // 2. Hide drawer
-            const drawerEl = document.getElementById('notificationDrawer');
-            if (drawerEl) {
-                const bsOffcanvas = bootstrap.Offcanvas.getInstance(drawerEl);
-                if (bsOffcanvas) bsOffcanvas.hide();
+            // 2. Hide dropdown
+            const bellBtn = document.getElementById('notifBellBtn');
+            if (bellBtn) {
+                const bsDropdown = bootstrap.Dropdown.getInstance(bellBtn);
+                if (bsDropdown) bsDropdown.hide();
             }
 
             // 3. Navigate to relevant tab
@@ -468,7 +454,7 @@
             } else if (upperType === 'APPOINTMENT' || upperRelated === 'APPOINTMENT' || upperRelated === 'PRESCRIPTION') {
                 targetTab = document.getElementById('appointments-tab');
             } else {
-                targetTab = document.getElementById('courses-tab');
+                targetTab = document.getElementById('appointments-tab');
             }
 
             if (targetTab) {
