@@ -30,12 +30,15 @@ class NotificationManager:
         """
         Creates a Notification record in the database and sends an FCM push notification to all active devices of the receiver.
         """
+        if not receiver:
+            return None
+
         # 1. Save to Database
         notification = Notification.objects.create(
             receiver=receiver,
             sender=sender,
-            sender_role=sender.role if sender else None,
-            receiver_role=receiver.role if receiver else None,
+            sender_role=getattr(sender, 'role', None) if sender else None,
+            receiver_role=getattr(receiver, 'role', None) if receiver else None,
             notification_type=notif_type,
             title=title,
             body=body,
@@ -73,14 +76,37 @@ class NotificationManager:
             response = messaging.send_each_for_multicast(message)
             logger.info(f"Successfully sent {response.success_count} messages; {response.failure_count} failed.")
             
-            # Optionally, handle failed tokens (e.g., delete them if they are expired)
             if response.failure_count > 0:
                 for idx, res in enumerate(response.responses):
                     if not res.success:
                         logger.warning(f"Failed to send to token {tokens[idx]}: {res.exception}")
-                        # Could set is_active = False here for invalid tokens
                         
         except Exception as e:
             logger.error(f"Error sending FCM notification: {e}")
             
         return notification
+
+def send_notification(recipient=None, receiver=None, title=None, title_en=None, title_bn=None, 
+                      body=None, message_en=None, message_bn=None, category='GENERAL', notif_type=None,
+                      sender=None, related_object_id=None, related_object_type=None):
+    """
+    Universal helper function compatible with all calling styles across the codebase.
+    """
+    target_user = receiver or recipient
+    if not target_user:
+        return None
+
+    final_title = title or title_en or title_bn or "Ashwash Notification"
+    final_body = body or message_en or message_bn or ""
+    final_type = notif_type or category or 'GENERAL'
+
+    return NotificationManager.send_notification(
+        receiver=target_user,
+        title=final_title,
+        body=final_body,
+        notif_type=final_type,
+        sender=sender,
+        related_object_id=related_object_id,
+        related_object_type=related_object_type
+    )
+

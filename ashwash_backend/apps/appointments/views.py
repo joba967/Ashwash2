@@ -56,32 +56,39 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
         try:
             from apps.notifications.views import send_notification
             spec_name = appointment.specialist.name if appointment.specialist else 'Specialist'
-            patient_name = self.request.user.full_name if (hasattr(self.request.user, 'full_name') and self.request.user.full_name) else self.request.user.username
+            patient_name = self.request.user.get_full_name() or self.request.user.username
+            app_date = getattr(appointment, 'appointment_date', getattr(appointment, 'date', 'Scheduled Date'))
+            app_time = getattr(appointment, 'time_slot', getattr(appointment, 'time', 'Scheduled Time'))
             
             # 1. Patient notification
             send_notification(
                 recipient=self.request.user,
                 title_en=f"Session Booking Requested 🩺",
                 title_bn=f"সেশন বুকিং রিকোয়েস্ট পাঠানো হয়েছে 🩺",
-                message_en=f"Your appointment request with {spec_name} has been received.",
-                message_bn=f"{spec_name}-এর সাথে আপনার সেশন বুকিং রিকোয়েস্টটি গৃহীত হয়েছে।",
-                category='SYSTEM'
+                message_en=f"Your appointment request with {spec_name} for {app_date} ({app_time}) has been received.",
+                message_bn=f"{spec_name}-এর সাথে আপনার সেশন বুকিং রিকোয়েস্টটি গৃহীত হয়েছে ({app_date})।",
+                category='APPOINTMENT'
             )
 
             # 2. Specialist notification (if specialist user exists)
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            spec_first_word = appointment.specialist.name.split()[0] if appointment.specialist else ''
-            spec_user = User.objects.filter(role__in=['SPECIALIST', 'DOCTOR'], first_name__icontains=spec_first_word).first() if spec_first_word else None
+            spec_user = None
+            if appointment.specialist:
+                spec_first_word = appointment.specialist.name.split()[0] if appointment.specialist.name else ''
+                spec_user = User.objects.filter(role__in=['SPECIALIST', 'DOCTOR'], first_name__icontains=spec_first_word).first()
+            if not spec_user:
+                spec_user = User.objects.filter(role__in=['SPECIALIST', 'DOCTOR']).first()
+
             if spec_user:
                 send_notification(
                     recipient=spec_user,
                     sender=self.request.user,
                     title_en=f"New Session Request from {patient_name} 🩺",
                     title_bn=f"{patient_name}-এর কাছ থেকে সেশন বুকিং রিকোয়েস্ট 🩺",
-                    message_en=f"Patient {patient_name} requested a session for {appointment.date} {appointment.time}.",
-                    message_bn=f"পেশেন্ট {patient_name} {appointment.date} {appointment.time}-এর জন্য সেশন বুক করতে চেয়েছেন।",
-                    category='SYSTEM'
+                    message_en=f"Patient {patient_name} requested a session for {app_date} ({app_time}).",
+                    message_bn=f"পেশেন্ট {patient_name} {app_date} ({app_time})-এর জন্য সেশন বুক করতে চেয়েছেন।",
+                    category='APPOINTMENT'
                 )
         except Exception:
             pass
@@ -100,14 +107,17 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
             if old_status != 'confirmed' and appointment.status == 'confirmed':
                 from apps.notifications.views import send_notification
                 spec_name = appointment.specialist.name if appointment.specialist else 'Specialist'
+                app_date = getattr(appointment, 'appointment_date', getattr(appointment, 'date', 'Scheduled Date'))
+                app_time = getattr(appointment, 'time_slot', getattr(appointment, 'time', 'Scheduled Time'))
                 send_notification(
                     recipient=appointment.user,
                     sender=self.request.user,
                     title_en=f"Session Confirmed! 🩺",
                     title_bn=f"সেশন কনফার্ম করা হয়েছে! 🩺",
-                    message_en=f"Your appointment with {spec_name} on {appointment.date} at {appointment.time} is confirmed.",
-                    message_bn=f"{spec_name}-এর সাথে {appointment.date} {appointment.time}-এর সেশনটি নিশ্চিত করা হয়েছে।",
-                    category='SYSTEM'
+                    message_en=f"Your appointment with {spec_name} on {app_date} at {app_time} is confirmed.",
+                    message_bn=f"{spec_name}-এর সাথে {app_date} {app_time}-এর সেশনটি নিশ্চিত করা হয়েছে।",
+                    category='APPOINTMENT'
                 )
         except Exception:
             pass
+

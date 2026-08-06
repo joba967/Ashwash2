@@ -119,8 +119,9 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> deleteNotification(int id) async {
     try {
-      await ApiService.delete('/api/notifications/$id/');
+      await ApiService.delete('/api/notifications/$id/delete/');
       _notifications.removeWhere((n) => n.id == id);
+
       _unreadCount = _notifications.where((n) => !n.isRead).length;
       notifyListeners();
     } catch (e) {

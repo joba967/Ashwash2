@@ -305,10 +305,11 @@ function deleteNotificationItem(id, event) {
     const token = getAdminToken();
     if (!token) return;
 
-    fetch(`${NOTIF_API_BASE}/api/notifications/${id}/`, {
+    fetch(`${NOTIF_API_BASE}/api/notifications/${id}/delete/`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
     })
+
     .then(() => {
         const card = document.getElementById(`notif-card-${id}`);
         if (card) card.remove();

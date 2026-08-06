@@ -7,5 +7,6 @@ class ResourceSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title_en', 'title_bn', 'summary_en', 'summary_bn',
             'content_en', 'content_bn', 'resource_type', 'media_url',
-            'duration_minutes', 'is_premium', 'created_at'
+            'media_file', 'duration_minutes', 'is_premium', 'created_at'
         ]
+

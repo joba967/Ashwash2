@@ -66,22 +66,7 @@ class LikePostView(APIView):
         else:
             post.likes_count += 1
             liked = True
-            # Trigger 6: Notify ONLY the post author when someone likes their post
-            if post.author and post.author != request.user:
-                try:
-                    from apps.notifications.views import send_notification
-                    sender_name = request.user.full_name if (hasattr(request.user, 'full_name') and request.user.full_name) else request.user.username
-                    send_notification(
-                        recipient=post.author,
-                        sender=request.user,
-                        title_en=f"New Reaction on Your Post ❤️",
-                        title_bn=f"আপনার পোস্টে রিয়েক্ট দিয়েছেন ❤️",
-                        message_en=f"{sender_name} liked your community post.",
-                        message_bn=f"{sender_name} আপনার কমিউনিটি পোস্টে লাইক দিয়েছেন।",
-                        category='COMMUNITY'
-                    )
-                except Exception:
-                    pass
+            # Like creation triggers notify_community_like in signals.py automatically
 
         post.save()
 
@@ -108,22 +93,8 @@ class AddCommentView(generics.CreateAPIView):
         serializer.save(post=post, author=self.request.user, author_alias=author_name)
         post.comments_count += 1
         post.save()
+        # Comment creation triggers notify_community_comment in signals.py automatically
 
-        # Trigger 6: Notify ONLY the post owner when someone comments on their post
-        if post.author and post.author != self.request.user:
-            try:
-                from apps.notifications.views import send_notification
-                send_notification(
-                    recipient=post.author,
-                    sender=self.request.user,
-                    title_en=f"New Reply on Your Post 💬",
-                    title_bn=f"আপনার পোস্টে নতুন উত্তর 💬",
-                    message_en=f"{author_name} replied to your community post.",
-                    message_bn=f"{author_name} আপনার কমিউনিটি পোস্টে মন্তব্য করেছেন।",
-                    category='COMMUNITY'
-                )
-            except Exception:
-                pass
 
 class ReportPostView(APIView):
     permission_classes = [permissions.IsAuthenticated]

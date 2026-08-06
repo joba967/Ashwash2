@@ -245,3 +245,25 @@ class UserEnrolledCoursesView(generics.ListAPIView):
 
     def get_queryset(self):
         return UserCourseProgress.objects.filter(user=self.request.user)
+
+class EnrollCourseView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, course_id):
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        progress, created = UserCourseProgress.objects.get_or_create(
+            user=request.user,
+            course=course,
+            defaults={'total_lessons_count': Lesson.objects.filter(module__course=course).count() or 5}
+        )
+        return Response({
+            'status': 'enrolled',
+            'course_id': course.id,
+            'title': course.title_en,
+            'progress': UserCourseProgressSerializer(progress).data
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+

@@ -2,9 +2,14 @@ from rest_framework import generics, permissions
 from .models import Resource
 from .serializers import ResourceSerializer
 
-class ResourceListView(generics.ListAPIView):
+class ResourceListView(generics.ListCreateAPIView):
     serializer_class = ResourceSerializer
     permission_classes = [permissions.AllowAny]
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
 
     def get_queryset(self):
         queryset = Resource.objects.all()
@@ -18,7 +23,13 @@ class ResourceListView(generics.ListAPIView):
 
         return queryset
 
-class ResourceDetailView(generics.RetrieveAPIView):
+    def perform_create(self, serializer):
+        media_file = self.request.FILES.get('media_file')
+        media_url = self.request.data.get('media_url', '')
+        serializer.save(media_file=media_file, media_url=media_url)
+
+class ResourceDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Resource.objects.all()
     serializer_class = ResourceSerializer
     permission_classes = [permissions.AllowAny]
+
