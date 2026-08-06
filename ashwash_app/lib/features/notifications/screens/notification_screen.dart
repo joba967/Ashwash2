@@ -387,7 +387,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
     } else if (type == 'COURSE' || relType == 'COURSE' || relType == 'ASSIGNMENT' || relType == 'CERTIFICATE') {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const CourseCatalogScreen()),
+        MaterialPageRoute(
+          builder: (_) => const CourseCatalogScreen(
+            categoryId: 'ALL',
+            categoryTitle: 'Courses & Wellness',
+          ),
+        ),
       );
     } else if (type == 'APPOINTMENT' || relType == 'APPOINTMENT' || relType == 'PRESCRIPTION') {
       Navigator.push(
