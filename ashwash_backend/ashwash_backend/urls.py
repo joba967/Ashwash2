@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import TemplateView
 
 from apps.dashboard.web_views import (
     specialist_login_view, specialist_register_view, specialist_portal_view,
@@ -18,6 +19,7 @@ urlpatterns = [
     path('admin-portal/', admin_portal_view, name='admin_portal'),
     path('web-logout/', web_logout_view, name='web_logout'),
     path('api/auth/specialist-register/', WebSpecialistRegisterAPIView.as_view(), name='api_specialist_register'),
+    path('firebase-messaging-sw.js', TemplateView.as_view(template_name="firebase-messaging-sw.js", content_type='application/javascript')),
 
     path('api/auth/', include('apps.authentication.urls')),
     path('api/mood/', include('apps.mood_tracker.urls')),

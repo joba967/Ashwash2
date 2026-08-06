@@ -1,0 +1,86 @@
+import os
+from .models import Notification, FCMDevice
+import logging
+
+logger = logging.getLogger(__name__)
+
+try:
+    import firebase_admin
+    from firebase_admin import credentials, messaging
+    
+    # Initialize Firebase if not already initialized
+    if not firebase_admin._apps:
+        # Check if service account key exists
+        cred_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'firebase_credentials.json')
+        if os.path.exists(cred_path):
+            cred = credentials.Certificate(cred_path)
+            firebase_admin.initialize_app(cred)
+            logger.info("Firebase Admin initialized successfully.")
+        else:
+            logger.warning(f"Firebase credentials not found at {cred_path}. Push notifications will not be sent.")
+            
+    FIREBASE_AVAILABLE = bool(firebase_admin._apps)
+except ImportError:
+    FIREBASE_AVAILABLE = False
+    logger.warning("firebase-admin package is not installed. Push notifications will not be sent.")
+
+class NotificationManager:
+    @staticmethod
+    def send_notification(receiver, title, body, notif_type='GENERAL', sender=None, related_object_id=None, related_object_type=None):
+        """
+        Creates a Notification record in the database and sends an FCM push notification to all active devices of the receiver.
+        """
+        # 1. Save to Database
+        notification = Notification.objects.create(
+            receiver=receiver,
+            sender=sender,
+            sender_role=sender.role if sender else None,
+            receiver_role=receiver.role if receiver else None,
+            notification_type=notif_type,
+            title=title,
+            body=body,
+            related_object_id=str(related_object_id) if related_object_id else None,
+            related_object_type=related_object_type
+        )
+        
+        # 2. Send FCM Push Notification
+        if not FIREBASE_AVAILABLE:
+            logger.info(f"Notification saved to DB, but skipped FCM push because Firebase is not configured: {title}")
+            return notification
+
+        devices = FCMDevice.objects.filter(user=receiver, is_active=True)
+        if not devices.exists():
+            logger.info(f"No active FCM devices found for user {receiver.username}")
+            return notification
+
+        tokens = [device.fcm_token for device in devices]
+        
+        message = messaging.MulticastMessage(
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            data={
+                'notification_id': str(notification.id),
+                'type': notif_type,
+                'related_object_id': str(related_object_id) if related_object_id else '',
+                'related_object_type': related_object_type or '',
+            },
+            tokens=tokens,
+        )
+        
+        try:
+            response = messaging.send_each_for_multicast(message)
+            logger.info(f"Successfully sent {response.success_count} messages; {response.failure_count} failed.")
+            
+            # Optionally, handle failed tokens (e.g., delete them if they are expired)
+            if response.failure_count > 0:
+                for idx, res in enumerate(response.responses):
+                    if not res.success:
+                        logger.warning(f"Failed to send to token {tokens[idx]}: {res.exception}")
+                        # Could set is_active = False here for invalid tokens
+                        
+        except Exception as e:
+            logger.error(f"Error sending FCM notification: {e}")
+            
+        return notification

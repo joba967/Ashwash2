@@ -1,151 +1,120 @@
 import 'package:flutter/material.dart';
 import '../network/api_service.dart';
 
-class NotificationItem {
-  final String id;
-  final String titleEn;
-  final String titleBn;
-  final String bodyEn;
-  final String bodyBn;
-  final DateTime timestamp;
-  bool isRead;
-  final String category; // 'REMINDER', 'SYSTEM', 'COMMUNITY', 'COURSE'
+class NotificationModel {
+  final int id;
+  final String title;
+  final String body;
+  final String type;
+  final bool isRead;
+  final String createdAt;
+  final String? relatedObjectId;
+  final String? relatedObjectType;
 
-  NotificationItem({
+  NotificationModel({
     required this.id,
-    required this.titleEn,
-    required this.titleBn,
-    required this.bodyEn,
-    required this.bodyBn,
-    required this.timestamp,
-    this.isRead = false,
-    required this.category,
+    required this.title,
+    required this.body,
+    required this.type,
+    required this.isRead,
+    required this.createdAt,
+    this.relatedObjectId,
+    this.relatedObjectType,
   });
 
-  factory NotificationItem.fromJson(Map<String, dynamic> json) {
-    DateTime parsedTime;
-    try {
-      parsedTime = DateTime.parse(json['created_at']);
-    } catch (_) {
-      parsedTime = DateTime.now();
-    }
-
-    return NotificationItem(
-      id: json['id']?.toString() ?? '0',
-      titleEn: json['title_en']?.toString() ?? '',
-      titleBn: json['title_bn']?.toString() ?? json['title_en']?.toString() ?? '',
-      bodyEn: json['message_en']?.toString() ?? '',
-      bodyBn: json['message_bn']?.toString() ?? json['message_en']?.toString() ?? '',
-      timestamp: parsedTime,
-      isRead: json['is_read'] == true,
-      category: json['category']?.toString() ?? 'SYSTEM',
+  factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    return NotificationModel(
+      id: json['id'],
+      title: json['title'],
+      body: json['body'],
+      type: json['notification_type'],
+      isRead: json['is_read'],
+      createdAt: json['created_at'],
+      relatedObjectId: json['related_object_id'],
+      relatedObjectType: json['related_object_type'],
     );
   }
 }
 
-class NotificationProvider with ChangeNotifier {
-  List<NotificationItem> _notifications = [
-    NotificationItem(
-      id: 'n1',
-      titleEn: 'Daily Mood Tracking Reminder 🌸',
-      titleBn: 'দৈনন্দিন মুড ট্র্যাকের রিমাইন্ডার 🌸',
-      bodyEn: 'Take 30 seconds to reflect and record how you are feeling today.',
-      bodyBn: 'আজ আপনার মনের অনুভূতি কেমন তা রেকর্ড করতে ৩০ সেকেন্ড সময় নিন।',
-      timestamp: DateTime.now().subtract(const Duration(minutes: 15)),
-      isRead: false,
-      category: 'REMINDER',
-    ),
-    NotificationItem(
-      id: 'n2',
-      titleEn: 'New Course Assignment Unlocked 📚',
-      titleBn: 'নতুন কোর্স অ্যাসাইনমেন্ট আনলক হয়েছে 📚',
-      bodyEn: 'Module 2: Self-Care & Gratitude Journaling is now available in your Postpartum Recovery Program.',
-      bodyBn: 'আপনার পোস্টপার্টাম রিকভারি প্রোগ্রামে মডিউল ২ আনলক হয়েছে।',
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      isRead: false,
-      category: 'COURSE',
-    ),
-  ];
-
-  String _selectedFilter = 'ALL';
+class NotificationProvider extends ChangeNotifier {
+  int _unreadCount = 0;
+  List<NotificationModel> _notifications = [];
   bool _isLoading = false;
 
-  NotificationProvider() {
-    fetchNotifications();
-  }
-
+  int get unreadCount => _unreadCount;
+  List<NotificationModel> get notifications => _notifications;
   bool get isLoading => _isLoading;
 
-  List<NotificationItem> get notifications {
-    if (_selectedFilter == 'ALL') {
-      return List.unmodifiable(_notifications);
+  Future<void> fetchUnreadCount() async {
+    try {
+      final response = await ApiService.get('/api/notifications/count/');
+      _unreadCount = response['unread_count'] ?? 0;
+      notifyListeners();
+    } catch (e) {
+      print("Failed to fetch unread count: \$e");
     }
-    return List.unmodifiable(_notifications.where((n) => n.category == _selectedFilter));
   }
-
-  int get unreadCount => _notifications.where((n) => !n.isRead).length;
-  String get selectedFilter => _selectedFilter;
 
   Future<void> fetchNotifications() async {
     _isLoading = true;
     notifyListeners();
-
     try {
-      final res = await ApiService.getList('http://127.0.0.1:8000/api/notifications/', requireAuth: true);
-      if (res.isNotEmpty) {
-        final List<NotificationItem> apiItems = [];
-        for (var item in res) {
-          if (item is Map<String, dynamic>) {
-            apiItems.add(NotificationItem.fromJson(item));
-          } else if (item is Map) {
-            apiItems.add(NotificationItem.fromJson(Map<String, dynamic>.from(item)));
-          }
-        }
-        if (apiItems.isNotEmpty) {
-          _notifications = apiItems;
-        }
+      final response = await ApiService.get('/api/notifications/');
+      if (response is List) {
+        _notifications = response.map((e) => NotificationModel.fromJson(e)).toList();
       }
-    } catch (_) {
-      // Retain fallback list on network error
+    } catch (e) {
+      print("Failed to fetch notifications: \$e");
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  void setFilter(String category) {
-    _selectedFilter = category;
-    notifyListeners();
-  }
-
-  void markAsRead(String id) async {
-    final index = _notifications.indexWhere((n) => n.id == id);
-    if (index != -1) {
-      _notifications[index].isRead = true;
-      notifyListeners();
-      try {
-        await ApiService.post('http://127.0.0.1:8000/api/notifications/$id/read/', {}, requireAuth: true);
-      } catch (_) {}
-    }
-  }
-
-  void markAllAsRead() async {
-    for (var n in _notifications) {
-      n.isRead = true;
-    }
-    notifyListeners();
+  Future<void> markAsRead(int id) async {
     try {
-      await ApiService.post('http://127.0.0.1:8000/api/notifications/read-all/', {}, requireAuth: true);
-    } catch (_) {}
+      await ApiService.post('/api/notifications/\$id/read/', {});
+      final index = _notifications.indexWhere((n) => n.id == id);
+      if (index != -1) {
+        final notif = _notifications[index];
+        _notifications[index] = NotificationModel(
+          id: notif.id,
+          title: notif.title,
+          body: notif.body,
+          type: notif.type,
+          isRead: true,
+          createdAt: notif.createdAt,
+          relatedObjectId: notif.relatedObjectId,
+          relatedObjectType: notif.relatedObjectType,
+        );
+        _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
+        notifyListeners();
+      }
+    } catch (e) {
+      print("Failed to mark as read: \$e");
+    }
   }
 
-  void deleteNotification(String id) {
-    _notifications.removeWhere((n) => n.id == id);
-    notifyListeners();
-  }
-
-  void clearAll() {
-    _notifications.clear();
-    notifyListeners();
+  Future<void> markAllAsRead() async {
+    try {
+      await ApiService.post('/api/notifications/read-all/', {});
+      for (var i = 0; i < _notifications.length; i++) {
+        final notif = _notifications[i];
+        _notifications[i] = NotificationModel(
+          id: notif.id,
+          title: notif.title,
+          body: notif.body,
+          type: notif.type,
+          isRead: true,
+          createdAt: notif.createdAt,
+          relatedObjectId: notif.relatedObjectId,
+          relatedObjectType: notif.relatedObjectType,
+        );
+      }
+      _unreadCount = 0;
+      notifyListeners();
+    } catch (e) {
+      print("Failed to mark all as read: \$e");
+    }
   }
 }

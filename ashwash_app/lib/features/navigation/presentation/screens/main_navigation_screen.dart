@@ -6,6 +6,7 @@ import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../community/community_screen.dart';
 import '../../../chat/ai_chat_placeholder_screen.dart';
 import '../../../profile/profile_screen.dart';
+import '../../../../core/services/fcm_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -16,6 +17,12 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    FCMService.initFCM(context);
+  }
 
   final List<Widget> _screens = const [
     DashboardScreen(),

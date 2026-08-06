@@ -12,14 +12,30 @@ import '../../../hub/presentation/screens/knowledge_hub_screen.dart';
 import '../../../mind_games/mind_games_hub_screen.dart';
 import '../../../courses/presentation/screens/course_catalog_screen.dart';
 import '../../../appointments/specialist_list_screen.dart';
+import '../../notifications/screens/notification_screen.dart';
+import '../../../../core/providers/notification_provider.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<NotificationProvider>(context, listen: false).fetchUnreadCount();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final dashboardProvider = Provider.of<DashboardProvider>(context);
     final langProvider = Provider.of<LanguageProvider>(context);
+    final notifProvider = Provider.of<NotificationProvider>(context);
     final isBn = langProvider.isBangla;
 
     return Scaffold(
@@ -32,10 +48,12 @@ class DashboardScreen extends StatelessWidget {
               height: 36,
               width: 36,
               fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.health_and_safety, color: AppColors.primary, size: 36),
             ),
             const SizedBox(width: 10),
             const Text(
-              'আশ্বাস',
+              'Ashwash',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -46,25 +64,39 @@ class DashboardScreen extends StatelessWidget {
         ),
         actions: [
           Stack(
+            alignment: Alignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_none_rounded, size: 28),
+                icon: const Icon(Icons.notifications_none_rounded, size: 28, color: AppColors.primary),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notifications: 2 new updates available.')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationScreen()),
                   );
                 },
               ),
-              if (dashboardProvider.hasUnreadNotifications)
+              if (notifProvider.unreadCount > 0)
                 Positioned(
-                  right: 12,
-                  top: 12,
+                  right: 8,
+                  top: 8,
                   child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '\${notifProvider.unreadCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
@@ -132,7 +164,7 @@ class DashboardScreen extends StatelessWidget {
                           );
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Navigating to $route...')),
+                            SnackBar(content: Text('Navigating to \$route...')),
                           );
                         }
                       },
