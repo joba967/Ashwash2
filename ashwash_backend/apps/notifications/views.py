@@ -9,6 +9,7 @@ from .services import NotificationManager, send_notification
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_queryset(self):
         return Notification.objects.filter(receiver=self.request.user, is_deleted=False).order_by('-created_at')
@@ -16,6 +17,7 @@ class NotificationListView(generics.ListAPIView):
 class UnreadNotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_queryset(self):
         return Notification.objects.filter(receiver=self.request.user, is_read=False, is_deleted=False).order_by('-created_at')

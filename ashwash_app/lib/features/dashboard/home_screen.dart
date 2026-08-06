@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/localization/app_language_provider.dart';
+import '../../core/providers/notification_provider.dart';
 import '../mood/mood_tracking_screen.dart';
 import '../knowledge_hub/knowledge_hub_screen.dart';
 import '../courses/courses_screen.dart';
@@ -10,6 +11,7 @@ import '../courses/presentation/screens/course_catalog_screen.dart';
 import '../appointments/specialist_list_screen.dart';
 import '../profile/report_screen.dart';
 import '../mind_games/mind_games_hub_screen.dart';
+import '../notifications/screens/notification_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -24,8 +26,17 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<String> _moodEmojis = ['😃', '😊', '😐', '😔', '😢'];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<NotificationProvider>(context, listen: false).fetchUnreadCount();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isBn = Provider.of<AppLanguageProvider>(context).isBangla;
+    final notifProvider = Provider.of<NotificationProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -47,20 +58,42 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: Stack(
+              clipBehavior: Clip.none,
               children: [
                 const Icon(Icons.notifications_none_rounded, size: 28),
-                Positioned(
-                  right: 2,
-                  top: 2,
-                  child: Container(
-                    width: 9,
-                    height: 9,
-                    decoration: const BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
+                if (notifProvider.unreadCount > 0)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.danger,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${notifProvider.unreadCount}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationScreen()),
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],

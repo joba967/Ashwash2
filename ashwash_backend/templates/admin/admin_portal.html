@@ -32,6 +32,21 @@
         .table-custom { color: #F8FAFC; }
         .table-custom th { background: #0F172A; color: #94A3B8; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .table-custom td { border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+        
+        /* Offcanvas Notification Drawer Styling */
+        .offcanvas {
+            z-index: 1085 !important;
+        }
+        .offcanvas-backdrop {
+            z-index: 1080 !important;
+        }
+        #notificationDrawer {
+            background-color: #0F172A !important;
+            border-left: 1px solid rgba(255,255,255,0.1) !important;
+            width: 420px !important;
+            max-width: 90vw !important;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.7) !important;
+        }
     </style>
 </head>
 <body>
@@ -372,7 +387,7 @@
     </div>
 
     <!-- Offcanvas Notifications Drawer -->
-    <div class="offcanvas offcanvas-end text-white" tabindex="-1" id="notificationDrawer" aria-labelledby="notificationDrawerLabel" style="background-color: #0F172A; border-left: 1px solid rgba(255,255,255,0.1); width: 420px; max-width: 90vw;">
+    <div class="offcanvas offcanvas-end text-white" tabindex="-1" id="notificationDrawer" aria-labelledby="notificationDrawerLabel">
         <div class="offcanvas-header border-bottom border-secondary d-flex justify-content-between align-items-center">
             <h5 class="offcanvas-title fw-bold" id="notificationDrawerLabel">
                 <i class="fa-solid fa-bell me-2 text-primary"></i> System Notifications
@@ -513,10 +528,7 @@
             loadNotifications();
             const drawerEl = document.getElementById('notificationDrawer');
             if (drawerEl) {
-                let bsOffcanvas = bootstrap.Offcanvas.getInstance(drawerEl);
-                if (!bsOffcanvas) {
-                    bsOffcanvas = new bootstrap.Offcanvas(drawerEl);
-                }
+                const bsOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
                 bsOffcanvas.show();
             }
         }
