@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../network/api_service.dart';
+import '../network/api_endpoints.dart';
 
 class NotificationModel {
   final int id;
@@ -47,7 +48,7 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> fetchUnreadCount() async {
     try {
-      final response = await ApiService.get('/api/notifications/count/');
+      final response = await ApiService.get(ApiEndpoints.notificationsCount, requireAuth: true);
       _unreadCount = response['unread_count'] ?? 0;
       notifyListeners();
     } catch (e) {
@@ -59,7 +60,7 @@ class NotificationProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final listData = await ApiService.getList('/api/notifications/');
+      final listData = await ApiService.getList(ApiEndpoints.notifications, requireAuth: true);
       _notifications = listData.map((e) => NotificationModel.fromJson(e as Map<String, dynamic>)).toList();
       _unreadCount = _notifications.where((n) => !n.isRead).length;
     } catch (e) {
@@ -72,7 +73,7 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> markAsRead(int id) async {
     try {
-      await ApiService.post('/api/notifications/$id/read/', {});
+      await ApiService.post('${ApiEndpoints.notifications}$id/read/', {}, requireAuth: true);
       final index = _notifications.indexWhere((n) => n.id == id);
       if (index != -1) {
         final notif = _notifications[index];
@@ -96,7 +97,7 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> markAllAsRead() async {
     try {
-      await ApiService.post('/api/notifications/read-all/', {});
+      await ApiService.post(ApiEndpoints.notificationsReadAll, {}, requireAuth: true);
       for (var i = 0; i < _notifications.length; i++) {
         final notif = _notifications[i];
         _notifications[i] = NotificationModel(
@@ -119,9 +120,8 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> deleteNotification(int id) async {
     try {
-      await ApiService.delete('/api/notifications/$id/delete/');
+      await ApiService.delete('${ApiEndpoints.notifications}$id/delete/', requireAuth: true);
       _notifications.removeWhere((n) => n.id == id);
-
       _unreadCount = _notifications.where((n) => !n.isRead).length;
       notifyListeners();
     } catch (e) {
@@ -131,7 +131,7 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> deleteAllNotifications() async {
     try {
-      await ApiService.delete('/api/notifications/delete-all/');
+      await ApiService.delete(ApiEndpoints.notificationsDeleteAll, requireAuth: true);
       _notifications.clear();
       _unreadCount = 0;
       notifyListeners();

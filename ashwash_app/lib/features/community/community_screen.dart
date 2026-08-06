@@ -172,7 +172,81 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Post deleted successfully')),
+        const SnackBar(content: Text('Post deleted successfully'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _confirmDeletePost(BuildContext context, int postId, bool isBn) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isBn ? 'পোস্ট মুছে ফেলতে চান?' : 'Delete Post?'),
+        content: Text(isBn ? 'আপনি কি নিশ্চিত যে এই পোস্টটি চিরতরে মুছে ফেলতে চান?' : 'Are you sure you want to permanently delete this post?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isBn ? 'বাতিল' : 'Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deletePost(postId);
+            },
+            child: Text(isBn ? 'মুছে ফেলুন' : 'Delete', style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editPost(int postId, String newContent, String newTag, bool isAnonymous) async {
+    try {
+      await ApiService.patch(
+        '${ApiEndpoints.posts}$postId/',
+        {
+          'content': newContent,
+          'tag': newTag,
+          'is_anonymous': isAnonymous,
+        },
+        requireAuth: true,
+      );
+    } catch (_) {}
+
+    final idx = _sharedCommunityDb.indexWhere((p) => p['id'] == postId);
+    if (idx != -1) {
+      _sharedCommunityDb[idx]['content'] = newContent;
+      _sharedCommunityDb[idx]['tag'] = newTag;
+      _sharedCommunityDb[idx]['is_anonymous'] = isAnonymous;
+      if (isAnonymous) {
+        _sharedCommunityDb[idx]['author_alias'] = 'Anonymous Member';
+      }
+      await _savePostsToStorage();
+    }
+    _fetchPosts();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Post updated successfully'), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  Future<void> _reportPost(int postId, String reason) async {
+    try {
+      await ApiService.post(
+        '${ApiEndpoints.posts}$postId/report/',
+        {'reason': reason},
+        requireAuth: true,
+      );
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Report submitted. Our administration team has been notified to review this post.'),
+          backgroundColor: Colors.orange,
+        ),
       );
     }
   }
@@ -432,29 +506,292 @@ class _CommunityScreenState extends State<CommunityScreen> {
               ),
               const Spacer(),
 
-              // Delete Option if Post created in session
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert_rounded, size: 20, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                onSelected: (val) {
-                  if (val == 'delete') _deletePost(post['id']);
+              // Post Actions Menu (Edit & Delete for Owner, Report for others)
+              Builder(
+                builder: (context) {
+                  final authUser = Provider.of<AuthProvider>(context, listen: false).currentUser;
+                  final bool isOwner = post['is_owner'] == true ||
+                      (authUser != null && post['author'] != null && post['author'].toString() == authUser.id.toString()) ||
+                      (authUser != null && post['author_username'] != null && post['author_username'] == authUser.username) ||
+                      (authUser != null && !isAnon && post['author_alias'] == '${authUser.firstName} ${authUser.lastName}'.trim());
+
+                  return PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert_rounded, size: 20, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    onSelected: (val) {
+                      final pId = post['id'] is int ? post['id'] : (int.tryParse(post['id'].toString()) ?? 0);
+                      if (val == 'edit') {
+                        _showEditPostDialog(context, post, isBn);
+                      } else if (val == 'delete') {
+                        _confirmDeletePost(context, pId, isBn);
+                      } else if (val == 'report') {
+                        _showReportPostDialog(context, post, isBn);
+                      }
+                    },
+                    itemBuilder: (ctx) {
+                      if (isOwner) {
+                        return [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 20),
+                                const SizedBox(width: 8),
+                                Text(isBn ? 'সম্পাদনা করুন' : 'Edit Post', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                                const SizedBox(width: 8),
+                                Text(isBn ? 'মুছে ফেলুন' : 'Delete Post', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ];
+                      } else {
+                        return [
+                          PopupMenuItem(
+                            value: 'report',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.flag_outlined, color: Colors.orange, size: 20),
+                                const SizedBox(width: 8),
+                                Text(isBn ? 'রিপোর্ট করুন' : 'Report Post', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ];
+                      }
+                    },
+                  );
                 },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18),
-                        const SizedBox(width: 8),
-                        Text(isBn ? 'মুছে ফেলুন' : 'Delete Post', style: const TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  // Edit Post Dialog
+  void _showEditPostDialog(BuildContext context, Map<String, dynamic> post, bool isBn) {
+    final controller = TextEditingController(text: post['content'] ?? '');
+    String selectedTag = post['tag'] ?? 'Support';
+    bool isAnonymous = post['is_anonymous'] ?? true;
+    bool isSubmitting = false;
+    final int pId = post['id'] is int ? post['id'] : (int.tryParse(post['id'].toString()) ?? 0);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 20,
+                left: 24,
+                right: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    isBn ? 'পোস্ট সম্পাদনা করুন' : 'Edit Community Post',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedTag,
+                    decoration: InputDecoration(
+                      labelText: isBn ? 'ট্যাগ নির্বাচন করুন' : 'Select Category Tag',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: ['Success Story', 'Question', 'Support'].map((t) {
+                      return DropdownMenuItem(value: t, child: Text(t));
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setModalState(() => selectedTag = val);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: isBn ? 'আপনার পোস্ট আপডেট করুন...' : 'Update your post content...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.purple.shade100),
+                    ),
+                    child: SwitchListTile(
+                      secondary: Icon(
+                        isAnonymous ? Icons.security_rounded : Icons.person_rounded,
+                        color: isAnonymous ? const Color(0xFFA855F7) : AppColors.primary,
+                      ),
+                      title: Text(
+                        isBn ? 'পরিচয় গোপন রাখুন (Anonymous)' : 'Post Anonymously',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      activeColor: const Color(0xFFA855F7),
+                      value: isAnonymous,
+                      onChanged: (val) => setModalState(() => isAnonymous = val),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final text = controller.text.trim();
+                            if (text.isEmpty) return;
+                            setModalState(() => isSubmitting = true);
+                            await _editPost(pId, text, selectedTag, isAnonymous);
+                            if (mounted) Navigator.pop(context);
+                          },
+                    child: isSubmitting
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(
+                            isBn ? 'সংরক্ষণ করুন' : 'Save Changes',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Report Post Dialog
+  void _showReportPostDialog(BuildContext context, Map<String, dynamic> post, bool isBn) {
+    String selectedReason = 'Inappropriate content';
+    final customReasonCtrl = TextEditingController();
+    bool isSubmitting = false;
+    final int pId = post['id'] is int ? post['id'] : (int.tryParse(post['id'].toString()) ?? 0);
+
+    final List<String> reasons = [
+      'Inappropriate content',
+      'Harassment or Hate speech',
+      'Spam or Scam',
+      'Self-harm or Crisis concern',
+      'Misleading medical info',
+      'Other',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  const Icon(Icons.shield_outlined, color: Colors.orange, size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    isBn ? 'পোস্ট রিপোর্ট করুন' : 'Report Post',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isBn
+                          ? 'এই পোস্টটিতে কি কোনো সমস্যা রয়েছে? অনুগ্রহ করে কারণ উল্লেখ করুন:'
+                          : 'Why are you reporting this post? Our moderation team will investigate:',
+                      style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 14),
+                    ...reasons.map((r) {
+                      return RadioListTile<String>(
+                        value: r,
+                        groupValue: selectedReason,
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(r, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                        activeColor: Colors.orange,
+                        onChanged: (val) {
+                          if (val != null) setDialogState(() => selectedReason = val);
+                        },
+                      );
+                    }),
+                    if (selectedReason == 'Other') ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: customReasonCtrl,
+                        decoration: InputDecoration(
+                          hintText: isBn ? 'বিস্তারিত লিখুন...' : 'Describe the violation...',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(isBn ? 'বাতিল' : 'Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          setDialogState(() => isSubmitting = true);
+                          final reasonToSend = selectedReason == 'Other' && customReasonCtrl.text.trim().isNotEmpty
+                              ? customReasonCtrl.text.trim()
+                              : selectedReason;
+                          await _reportPost(pId, reasonToSend);
+                          if (mounted) Navigator.pop(ctx);
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Text(isBn ? 'রিপোর্ট পাঠান' : 'Submit Report', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

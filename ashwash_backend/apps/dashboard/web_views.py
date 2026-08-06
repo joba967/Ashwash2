@@ -152,9 +152,10 @@ def admin_portal_view(request):
     total_posts = Post.objects.count()
 
     specialists = SpecialistProfile.objects.select_related('user').all().order_by('id')
-    all_users = User.objects.all().order_by('-date_joined')[:20]
+    all_users = User.objects.all().order_by('-date_joined')[:30]
     all_courses = Course.objects.all().order_by('-created_at')[:10]
-    reports = Report.objects.all().order_by('-created_at')[:10]
+    reports = Report.objects.select_related('post', 'user', 'post__author').all().order_by('-created_at')[:30]
+    all_posts = Post.objects.select_related('author').all().order_by('-created_at')[:30]
 
     context = {
         'total_patients': total_patients,
@@ -162,10 +163,12 @@ def admin_portal_view(request):
         'total_courses': total_courses,
         'total_appointments': total_appointments,
         'total_posts': total_posts,
+        'total_reports': reports.count(),
         'specialists': specialists,
         'all_users': all_users,
         'all_courses': all_courses,
         'reports': reports,
+        'all_posts': all_posts,
     }
     return render(request, 'admin/admin_portal.html', context)
 

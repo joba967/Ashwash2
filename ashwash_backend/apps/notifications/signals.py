@@ -238,28 +238,45 @@ def notify_community_post(sender, instance, created, **kwargs):
     try:
         if created:
             author_label = instance.author_alias or (instance.author.get_full_name() if instance.author else "A patient")
-            # Notify all specialists
-            for spec in User.objects.filter(role__in=[User.Role.SPECIALIST, 'DOCTOR']):
-                NotificationManager.send_notification(
-                    receiver=spec,
-                    sender=instance.author,
-                    title="New Community Discussion 💬",
-                    body=f"{author_label} posted: '{instance.content[:70]}...'. Reply to support them.",
-                    notif_type="COMMUNITY",
-                    related_object_id=instance.id,
-                    related_object_type="Post"
-                )
-            # Notify admins
-            for admin in User.objects.filter(role=User.Role.ADMIN):
-                NotificationManager.send_notification(
-                    receiver=admin,
-                    sender=instance.author,
-                    title="New Community Post 💬",
-                    body=f"{author_label} created a new post in #{instance.tag}.",
-                    notif_type="COMMUNITY",
-                    related_object_id=instance.id,
-                    related_object_type="Post"
-                )
+            snippet = instance.content[:75] + ("..." if len(instance.content) > 75 else "")
+            
+            # Query all specialists (role=SPECIALIST/DOCTOR or SpecialistProfile attached)
+            from django.db.models import Q
+            specialists = User.objects.filter(
+                Q(role__in=['SPECIALIST', 'DOCTOR', 'Specialist', 'Doctor']) |
+                Q(specialist_profile__isnull=False)
+            ).distinct()
+
+            for spec in specialists:
+                if spec != instance.author:
+                    NotificationManager.send_notification(
+                        receiver=spec,
+                        sender=instance.author,
+                        title="New Community Post Available 💬",
+                        body=f"New community post available: '{snippet}'. Check it and reply.",
+                        notif_type="COMMUNITY",
+                        related_object_id=instance.id,
+                        related_object_type="Post"
+                    )
+
+            # Query all administrators
+            admins = User.objects.filter(
+                Q(role__in=['ADMIN', 'Admin']) |
+                Q(is_superuser=True) |
+                Q(is_staff=True)
+            ).distinct()
+
+            for admin in admins:
+                if admin != instance.author:
+                    NotificationManager.send_notification(
+                        receiver=admin,
+                        sender=instance.author,
+                        title="New Community Post 💬",
+                        body=f"{author_label} created a new post in #{instance.tag}: '{snippet}'",
+                        notif_type="COMMUNITY",
+                        related_object_id=instance.id,
+                        related_object_type="Post"
+                    )
     except Exception as e:
         logger.error(f"Error in notify_community_post signal: {e}")
 
@@ -269,11 +286,13 @@ def notify_community_comment(sender, instance, created, **kwargs):
         if created:
             post_author = instance.post.author
             if post_author and post_author != instance.author:
+                doctor_name = instance.author_alias or (f"Dr. {instance.author.get_full_name()}" if instance.author else "A Specialist")
+                comment_snippet = instance.content[:80] + ("..." if len(instance.content) > 80 else "")
                 NotificationManager.send_notification(
                     receiver=post_author,
                     sender=instance.author,
-                    title="New Reply to Your Post 💬",
-                    body=f"{instance.author_alias} replied: '{instance.content[:70]}...'",
+                    title="Specialist Replied to Your Post 🩺💬",
+                    body=f"{doctor_name} replied to your post: '{comment_snippet}'",
                     notif_type="COMMUNITY",
                     related_object_id=instance.post.id,
                     related_object_type="Post"
@@ -287,12 +306,13 @@ def notify_community_like(sender, instance, created, **kwargs):
         if created:
             post_author = instance.post.author
             if post_author and post_author != instance.user:
-                sender_name = instance.user.get_full_name() or instance.user.username
+                sender_name = instance.user.get_full_name() or instance.user.username or "A member"
+                post_snippet = instance.post.content[:60] + ("..." if len(instance.post.content) > 60 else "")
                 NotificationManager.send_notification(
                     receiver=post_author,
                     sender=instance.user,
-                    title="New Reaction on Your Post ❤️",
-                    body=f"{sender_name} liked your community post.",
+                    title="New Like on Your Post ❤️",
+                    body=f"{sender_name} liked your community post: '{post_snippet}'",
                     notif_type="COMMUNITY",
                     related_object_id=instance.post.id,
                     related_object_type="Post"
@@ -304,12 +324,23 @@ def notify_community_like(sender, instance, created, **kwargs):
 def notify_community_report(sender, instance, created, **kwargs):
     try:
         if created:
-            for admin in User.objects.filter(role=User.Role.ADMIN):
+            from django.db.models import Q
+            reporter_name = instance.user.get_full_name() or instance.user.username or "A user"
+            post_author_name = instance.post.author_alias or (instance.post.author.username if instance.post.author else "Unknown")
+            reason_snippet = instance.reason[:80]
+            
+            admins = User.objects.filter(
+                Q(role__in=['ADMIN', 'Admin']) |
+                Q(is_superuser=True) |
+                Q(is_staff=True)
+            ).distinct()
+            
+            for admin in admins:
                 NotificationManager.send_notification(
                     receiver=admin,
                     sender=instance.user,
-                    title="Community Content Reported ⚠️",
-                    body=f"A post was reported for: {instance.reason[:70]}",
+                    title="Community Post Reported ⚠️",
+                    body=f"Post #{instance.post.id} by {post_author_name} reported by {reporter_name} for: '{reason_snippet}'. Review and manage in Admin Portal.",
                     notif_type="COMMUNITY",
                     related_object_id=instance.post.id,
                     related_object_type="Post"

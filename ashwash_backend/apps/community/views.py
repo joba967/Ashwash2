@@ -33,7 +33,8 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return obj.author == request.user or request.user.is_staff
+        # Only the post author or admins/staff can edit/delete
+        return obj.author == request.user or request.user.is_staff or request.user.is_superuser or request.user.role == 'ADMIN'
 
 class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Post.objects.all()
@@ -78,7 +79,12 @@ class AddCommentView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        is_specialist = user.role in ['DOCTOR', 'ADMIN', 'SPECIALIST'] or user.is_staff
+        is_specialist = (
+            user.role in ['DOCTOR', 'ADMIN', 'SPECIALIST'] or 
+            user.is_staff or 
+            user.is_superuser or 
+            hasattr(user, 'specialist_profile')
+        )
         if not is_specialist:
             return Response(
                 {'detail': 'Only verified mental health specialists and doctors can comment on community posts.'},
@@ -89,12 +95,11 @@ class AddCommentView(generics.CreateAPIView):
     def perform_create(self, serializer):
         post_id = self.kwargs['post_id']
         post = Post.objects.get(id=post_id)
-        author_name = f"Dr. {self.request.user.first_name or self.request.user.username} (Specialist)"
-        serializer.save(post=post, author=self.request.user, author_alias=author_name)
+        doctor_title = f"Dr. {self.request.user.first_name or self.request.user.username} (Specialist)"
+        serializer.save(post=post, author=self.request.user, author_alias=doctor_title)
         post.comments_count += 1
         post.save()
         # Comment creation triggers notify_community_comment in signals.py automatically
-
 
 class ReportPostView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -107,4 +112,27 @@ class ReportPostView(APIView):
 
         reason = request.data.get('reason', 'Inappropriate content')
         Report.objects.create(post=post, user=request.user, reason=reason)
-        return Response({'message': 'Report submitted successfully'}, status=status.HTTP_201_CREATED)
+        return Response({'message': 'Post reported successfully. Our administration team has been notified to review.'}, status=status.HTTP_201_CREATED)
+
+class AdminDeletePostAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        try:
+            post = Post.objects.get(pk=pk)
+            post_id = post.id
+            post.delete()
+            return Response({'message': f'Post #{post_id} deleted successfully by Administrator.'})
+        except Post.DoesNotExist:
+            return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class AdminDismissReportAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        try:
+            report = Report.objects.get(pk=pk)
+            report.delete()
+            return Response({'message': 'Report dismissed successfully.'})
+        except Report.DoesNotExist:
+            return Response({'error': 'Report not found'}, status=status.HTTP_404_NOT_FOUND)

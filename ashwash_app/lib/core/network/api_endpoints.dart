@@ -47,4 +47,10 @@ class ApiEndpoints {
   // Community & Payments
   static String get posts => '$baseUrl/community/posts/';
   static String get payments => '$baseUrl/payments/initiate/';
+
+  // Notifications Endpoints
+  static String get notifications => '$baseUrl/notifications/';
+  static String get notificationsCount => '$baseUrl/notifications/count/';
+  static String get notificationsReadAll => '$baseUrl/notifications/read-all/';
+  static String get notificationsDeleteAll => '$baseUrl/notifications/delete-all/';
 }
