@@ -46,7 +46,7 @@
                 Ashwash Specialist Workstation
             </a>
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-outline-light btn-sm rounded-3 position-relative" id="notifBellBtn" data-bs-toggle="offcanvas" data-bs-target="#notificationDrawer" onclick="loadNotifications()" title="Notifications">
+                <button class="btn btn-outline-light btn-sm rounded-3 position-relative" id="notifBellBtn" onclick="openNotificationDrawer()" title="Notifications">
                     <i class="fa-solid fa-bell"></i>
                     <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
                         0
@@ -427,6 +427,18 @@
             }
         }
 
+        function openNotificationDrawer() {
+            loadNotifications();
+            const drawerEl = document.getElementById('notificationDrawer');
+            if (drawerEl) {
+                let bsOffcanvas = bootstrap.Offcanvas.getInstance(drawerEl);
+                if (!bsOffcanvas) {
+                    bsOffcanvas = new bootstrap.Offcanvas(drawerEl);
+                }
+                bsOffcanvas.show();
+            }
+        }
+
         function handleSpecialistNotificationClick(id, type, relatedType, relatedId) {
             // 1. Mark as read
             fetch(`/api/notifications/${id}/read/`, {
@@ -434,6 +446,7 @@
                 headers: { 'X-CSRFToken': notifCsrfToken }
             }).then(() => {
                 fetchUnreadCount();
+                loadNotifications();
             });
 
             // 2. Hide drawer
@@ -447,15 +460,21 @@
             const upperType = (type || '').toUpperCase();
             const upperRelated = (relatedType || '').toUpperCase();
 
+            let targetTab = null;
             if (upperType === 'COMMUNITY' || upperRelated === 'POST' || upperRelated === 'COMMENT') {
-                const tab = document.getElementById('community-tab');
-                if (tab) tab.click();
-            } else if (upperType === 'COURSE' || upperRelated === 'COURSE' || upperRelated === 'HOMEWORK' || upperRelated === 'ASSIGNMENT') {
-                const tab = document.getElementById('courses-tab');
-                if (tab) tab.click();
+                targetTab = document.getElementById('community-tab');
+            } else if (upperType === 'COURSE' || upperRelated === 'COURSE' || upperRelated === 'HOMEWORK' || upperRelated === 'ASSIGNMENT' || upperRelated === 'LESSON') {
+                targetTab = document.getElementById('courses-tab');
             } else if (upperType === 'APPOINTMENT' || upperRelated === 'APPOINTMENT' || upperRelated === 'PRESCRIPTION') {
-                const tab = document.getElementById('appointments-tab');
-                if (tab) tab.click();
+                targetTab = document.getElementById('appointments-tab');
+            } else {
+                targetTab = document.getElementById('courses-tab');
+            }
+
+            if (targetTab) {
+                const tabInstance = bootstrap.Tab.getOrCreateInstance(targetTab);
+                tabInstance.show();
+                targetTab.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
 
