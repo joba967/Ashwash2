@@ -204,6 +204,19 @@ class _BookingScreenState extends State<BookingScreen> {
                     });
                   } catch (_) {}
 
+                  try {
+                    final payEndpoint = _selectedPaymentMethod.toLowerCase() == 'nagad'
+                        ? 'payments/nagad/execute/'
+                        : 'payments/bkash/execute/';
+                    await ApiService.post(payEndpoint, {
+                      'amount': widget.specialist.feeBdt,
+                      'purpose': 'Consultation Session with ${widget.specialist.name}',
+                      'mobile_number': '01770618575',
+                      'otp': '123456',
+                      'pin': '12121'
+                    });
+                  } catch (_) {}
+
                   specProvider.addAppointment(
                     SpecialistAppointmentModel(
                       id: 'app_${DateTime.now().millisecondsSinceEpoch}',
