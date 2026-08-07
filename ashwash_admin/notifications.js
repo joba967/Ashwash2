@@ -169,13 +169,62 @@ function groupNotificationsByDate(items) {
     return groups;
 }
 
+function handleAdminNotificationClick(id, notifType, relType, relId) {
+    // 1. Mark as read
+    markNotificationRead(id);
+
+    // 2. Close Offcanvas drawer
+    const offcanvasEl = document.getElementById('notificationsOffcanvas');
+    if (offcanvasEl && typeof bootstrap !== 'undefined') {
+        const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl);
+        if (bsOffcanvas) bsOffcanvas.hide();
+    }
+
+    // 3. Navigate to relevant tab or open modal
+    const upperType = (notifType || '').toUpperCase();
+    const upperRel = (relType || '').toUpperCase();
+
+    if (upperType === 'COURSE' || upperRel === 'COURSE' || upperRel === 'LESSON') {
+        const tabBtn = document.querySelector('[data-bs-target="#courses-admin-tab"]');
+        if (tabBtn) {
+            const tab = bootstrap.Tab.getOrCreateInstance(tabBtn);
+            tab.show();
+            tabBtn.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (typeof openCoursesModal === 'function') {
+            openCoursesModal();
+        }
+    } else if (upperType === 'APPOINTMENT' || upperRel === 'APPOINTMENT') {
+        if (typeof openAppointmentsModal === 'function') {
+            openAppointmentsModal();
+        }
+    } else if (upperType === 'PROFILE' || upperRel === 'SPECIALIST' || upperRel === 'SPECIALISTPROFILE') {
+        const tabBtn = document.querySelector('[data-bs-target="#specialists-tab"]');
+        if (tabBtn) {
+            const tab = bootstrap.Tab.getOrCreateInstance(tabBtn);
+            tab.show();
+            tabBtn.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (typeof openSpecialistsModal === 'function') {
+            openSpecialistsModal();
+        }
+    } else if (upperType === 'USER' || upperType === 'SYSTEM' || upperType === 'COMMUNITY') {
+        const tabBtn = document.querySelector('[data-bs-target="#users-tab"]');
+        if (tabBtn) {
+            const tab = bootstrap.Tab.getOrCreateInstance(tabBtn);
+            tab.show();
+            tabBtn.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (typeof openPatientsModal === 'function') {
+            openPatientsModal();
+        }
+    }
+}
+
 function renderNotificationCard(n) {
     const meta = getNotificationTypeMeta(n.notification_type);
     const timeStr = new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const isUnread = !n.is_read;
 
     return `
-        <div class="card bg-dark border ${isUnread ? 'border-primary' : 'border-secondary'} border-opacity-25 mb-2 rounded-3 shadow-sm transition-all" id="notif-card-${n.id}">
+        <div class="card bg-dark border ${isUnread ? 'border-primary' : 'border-secondary'} border-opacity-25 mb-2 rounded-3 shadow-sm transition-all" id="notif-card-${n.id}" style="cursor: pointer;" onclick="handleAdminNotificationClick(${n.id}, '${n.notification_type || ''}', '${n.related_object_type || ''}', '${n.related_object_id || ''}')">
             <div class="card-body p-3">
                 <div class="d-flex align-items-start gap-3">
                     <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px; background: ${meta.bg}; color: ${meta.color}; font-size: 16px;">
@@ -188,7 +237,7 @@ function renderNotificationCard(n) {
                         </div>
                         <h6 class="text-white fw-bold mb-1 mt-2" style="font-size: 14px;">${n.title}</h6>
                         <p class="text-secondary mb-2" style="font-size: 12px; line-height: 1.4;">${n.body}</p>
-                        <div class="d-flex align-items-center justify-content-between pt-1 border-top border-secondary border-opacity-25">
+                        <div class="d-flex align-items-center justify-content-between pt-1 border-top border-secondary border-opacity-25" onclick="event.stopPropagation();">
                             ${isUnread ? `
                                 <button class="btn btn-link btn-sm text-primary p-0 text-decoration-none small" style="font-size: 11px;" onclick="markNotificationRead(${n.id}, event)">
                                     <i class="fa-solid fa-check me-1"></i>Mark Read
