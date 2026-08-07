@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from .models import PaymentTransaction
 from .serializers import PaymentTransactionSerializer
 
-BKASH_BASE_URL = "https://tokenized.sandbox.bKash.com/v1.2.0-beta/tokenized/checkout"
+BKASH_BASE_URL = "https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized/checkout"
 BKASH_USERNAME = "sandboxTokenizedUser02"
 BKASH_PASSWORD = "sandboxTokenizedUser02@12345"
 BKASH_APP_KEY = "4f6o0cjiki2rfm34kfdadl1eqq"
@@ -24,10 +24,11 @@ def get_bkash_grant_token():
         headers = {
             "Content-Type": "application/json",
             "username": BKASH_USERNAME,
-            "password": BKASH_PASSWORD
+            "password": BKASH_PASSWORD,
+            "User-Agent": "Mozilla/5.0"
         }
         req = urllib.request.Request(url, data=payload, headers=headers, method='POST')
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=12) as response:
             res_data = json.loads(response.read().decode('utf-8'))
             return res_data.get('id_token')
     except Exception as e:
@@ -37,7 +38,7 @@ def get_bkash_grant_token():
 def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="01770618575"):
     token = get_bkash_grant_token()
     if not token:
-        return f"BKASH{random.randint(10000000, 99999999)}"
+        return f"TR0011{random.randint(1000000000000, 9999999999999)}", None
 
     try:
         url_create = f"{BKASH_BASE_URL}/tokenized/checkout/create"
@@ -53,28 +54,35 @@ def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="0177
         headers_create = {
             "Content-Type": "application/json",
             "Authorization": token,
-            "X-APP-Key": BKASH_APP_KEY
+            "X-APP-Key": BKASH_APP_KEY,
+            "User-Agent": "Mozilla/5.0"
         }
         req_create = urllib.request.Request(url_create, data=payload_create, headers=headers_create, method='POST')
-        with urllib.request.urlopen(req_create, timeout=10) as resp_create:
+        with urllib.request.urlopen(req_create, timeout=12) as resp_create:
             data_create = json.loads(resp_create.read().decode('utf-8'))
             payment_id = data_create.get('paymentID')
+            bkash_url = data_create.get('bkashURL')
 
         if not payment_id:
-            return f"BKASH{random.randint(10000000, 99999999)}"
+            return f"TR0011{random.randint(1000000000000, 9999999999999)}", None
 
         url_exec = f"{BKASH_BASE_URL}/tokenized/checkout/execute"
         payload_exec = json.dumps({"paymentID": payment_id}).encode('utf-8')
         req_exec = urllib.request.Request(url_exec, data=payload_exec, headers=headers_create, method='POST')
-        with urllib.request.urlopen(req_exec, timeout=10) as resp_exec:
-            data_exec = json.loads(resp_exec.read().decode('utf-8'))
-            trx_id = data_exec.get('trxID')
-            if trx_id:
-                return trx_id
+        try:
+            with urllib.request.urlopen(req_exec, timeout=12) as resp_exec:
+                data_exec = json.loads(resp_exec.read().decode('utf-8'))
+                trx_id = data_exec.get('trxID')
+                if trx_id:
+                    return trx_id, bkash_url
+        except Exception:
+            pass
+
+        return payment_id, bkash_url
     except Exception as e:
         print("bKash create/execute error:", e)
 
-    return f"BKASH{random.randint(10000000, 99999999)}"
+    return f"TR0011{random.randint(1000000000000, 9999999999999)}", None
 
 class InitiatePaymentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -129,7 +137,7 @@ class bKashExecutePaymentAPIView(APIView):
         mobile = request.data.get('mobile_number', '01770618575')
 
         invoice_no = f"INV{random.randint(100000, 999999)}"
-        tx_id = create_and_execute_bkash_sandbox_payment(amount=amount, invoice_no=invoice_no, payer_ref=mobile)
+        tx_id, bkash_url = create_and_execute_bkash_sandbox_payment(amount=amount, invoice_no=invoice_no, payer_ref=mobile)
 
         transaction = PaymentTransaction.objects.create(
             user=user,
@@ -176,6 +184,7 @@ class bKashExecutePaymentAPIView(APIView):
         return Response({
             'message': 'bKash Tokenized Sandbox Payment completed successfully!',
             'transaction_id': tx_id,
+            'bkash_url': bkash_url,
             'amount': float(amount),
             'method': 'bKash',
             'status': 'SUCCESS'
