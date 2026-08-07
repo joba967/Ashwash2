@@ -57,18 +57,25 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Notifications',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationScreen()),
+              );
+            },
             icon: Stack(
               clipBehavior: Clip.none,
               children: [
-                const Icon(Icons.notifications_none_rounded, size: 28),
+                const Icon(Icons.notifications_none_rounded, size: 28, color: AppColors.primary),
                 if (notifProvider.unreadCount > 0)
                   Positioned(
                     right: -2,
                     top: -2,
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(3),
                       decoration: const BoxDecoration(
-                        color: AppColors.danger,
+                        color: Colors.red,
                         shape: BoxShape.circle,
                       ),
                       constraints: const BoxConstraints(
@@ -76,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         minHeight: 16,
                       ),
                       child: Text(
-                        '${notifProvider.unreadCount}',
+                        notifProvider.unreadCount > 99 ? '99+' : '${notifProvider.unreadCount}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
@@ -88,12 +95,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
               ],
             ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationScreen()),
-              );
-            },
           ),
           const SizedBox(width: 8),
         ],
