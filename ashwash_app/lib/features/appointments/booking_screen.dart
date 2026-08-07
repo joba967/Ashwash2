@@ -277,7 +277,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         ),
                         Text(
                           'Amount: ৳${widget.specialist.feeBdt}',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.extrabold, color: Colors.black87),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.black87),
                         ),
                       ],
                     ),
