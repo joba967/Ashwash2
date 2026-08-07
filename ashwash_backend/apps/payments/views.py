@@ -30,24 +30,29 @@ def get_bkash_grant_token():
             "Content-Type": "application/json",
             "username": BKASH_USERNAME,
             "password": BKASH_PASSWORD,
-            "User-Agent": "Mozilla/5.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         req = urllib.request.Request(url, data=payload, headers=headers, method='POST')
         with urllib.request.urlopen(req, context=ssl_ctx, timeout=15) as response:
             res_data = json.loads(response.read().decode('utf-8'))
-            return res_data.get('id_token')
+            return res_data.get('id_token'), None
+    except urllib.error.HTTPError as e:
+        err_msg = f"HTTP {e.code}: {e.read().decode('utf-8', errors='ignore')}"
+        print("bKash grant token HTTP error:", err_msg)
+        return None, err_msg
     except Exception as e:
-        print("bKash grant token error:", e)
-        return None
+        err_msg = f"Exception: {str(e)}"
+        print("bKash grant token error:", err_msg)
+        return None, err_msg
 
 def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="01770618575"):
+    token, err = get_bkash_grant_token()
+    if not token:
+        return None, None, f"Grant Token Failed: {err}"
+
     ssl_ctx = ssl.create_default_context()
     ssl_ctx.check_hostname = False
     ssl_ctx.verify_mode = ssl.CERT_NONE
-
-    token = get_bkash_grant_token()
-    if not token:
-        return None, None
 
     try:
         url_create = f"{BKASH_BASE_URL}/tokenized/checkout/create"
@@ -64,7 +69,7 @@ def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="0177
             "Content-Type": "application/json",
             "Authorization": token,
             "X-APP-Key": BKASH_APP_KEY,
-            "User-Agent": "Mozilla/5.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         req_create = urllib.request.Request(url_create, data=payload_create, headers=headers_create, method='POST')
         with urllib.request.urlopen(req_create, context=ssl_ctx, timeout=15) as resp_create:
@@ -73,7 +78,7 @@ def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="0177
             bkash_url = data_create.get('bkashURL')
 
         if not payment_id:
-            return None, None
+            return None, None, f"Create Payment Failed: {data_create}"
 
         url_exec = f"{BKASH_BASE_URL}/tokenized/checkout/execute"
         payload_exec = json.dumps({"paymentID": payment_id}).encode('utf-8')
@@ -83,15 +88,14 @@ def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="0177
                 data_exec = json.loads(resp_exec.read().decode('utf-8'))
                 trx_id = data_exec.get('trxID')
                 if trx_id:
-                    return trx_id, bkash_url
+                    return trx_id, bkash_url, None
         except Exception:
             pass
 
-        return payment_id, bkash_url
+        return payment_id, bkash_url, None
     except Exception as e:
         print("bKash create/execute error:", e)
-
-    return None, None
+        return None, None, str(e)
 
 class InitiatePaymentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -146,10 +150,13 @@ class bKashExecutePaymentAPIView(APIView):
         mobile = request.data.get('mobile_number', '01770618575')
 
         invoice_no = f"INV{random.randint(100000, 999999)}"
-        tx_id, bkash_url = create_and_execute_bkash_sandbox_payment(amount=amount, invoice_no=invoice_no, payer_ref=mobile)
+        tx_id, bkash_url, err_detail = create_and_execute_bkash_sandbox_payment(amount=amount, invoice_no=invoice_no, payer_ref=mobile)
 
         if not tx_id:
-            return Response({'error': 'Failed to connect to bKash Sandbox API. Please check network/credentials.'}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({
+                'error': 'bKash Sandbox API Connection Error',
+                'details': err_detail
+            }, status=status.HTTP_502_BAD_GATEWAY)
 
         transaction = PaymentTransaction.objects.create(
             user=user,
