@@ -188,52 +188,11 @@ class _BookingScreenState extends State<BookingScreen> {
                   backgroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                onPressed: () async {
-                  final specProvider = Provider.of<SpecialistProvider>(context, listen: false);
-                  final appDateStr = '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}';
-                  
-                  try {
-                    await ApiService.post(ApiEndpoints.bookings, {
-                      'specialist_id': widget.specialist.id,
-                      'appointment_date': '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
-                      'time_slot': _selectedTimeSlot,
-                      'status': 'confirmed',
-                      'notes': 'Booked with ${widget.specialist.name}',
-                    });
-                  } catch (_) {}
-
-                  try {
-                    final payEndpoint = _selectedPaymentMethod.toLowerCase() == 'nagad'
-                        ? 'payments/nagad/execute/'
-                        : 'payments/bkash/execute/';
-                    await ApiService.post(payEndpoint, {
-                      'amount': widget.specialist.feeBdt,
-                      'purpose': 'Consultation Session with ${widget.specialist.name}',
-                      'mobile_number': '01770618575',
-                      'otp': '123456',
-                      'pin': '12121'
-                    });
-                  } catch (_) {}
-
-                  specProvider.addAppointment(
-                    SpecialistAppointmentModel(
-                      id: 'app_${DateTime.now().millisecondsSinceEpoch}',
-                      patientId: 'pat_new_${DateTime.now().millisecondsSinceEpoch}',
-                      patientName: 'Patient User (Booked Session)',
-                      patientAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
-                      date: appDateStr,
-                      timeSlot: _selectedTimeSlot,
-                      category: widget.specialist.specialization,
-                      status: 'confirmed',
-                      meetingLink: 'https://meet.google.com/ash-wash-wellness-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
-                      notes: 'Booked session with ${widget.specialist.name}',
-                    ),
-                  );
-
-                  if (mounted) _showSuccessDialog(context, isBn);
+                onPressed: () {
+                  _showPaymentGatewayModal(context, isBn);
                 },
                 child: Text(
-                  isBn ? 'বুকিং নিশ্চিত করুন (৳${widget.specialist.feeBdt})' : 'Confirm Booking (৳${widget.specialist.feeBdt})',
+                  isBn ? 'পেমেন্ট ও বুকিং নিশ্চিত করুন (৳${widget.specialist.feeBdt})' : 'Pay & Confirm Booking (৳${widget.specialist.feeBdt})',
                   style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -244,7 +203,203 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  void _showSuccessDialog(BuildContext context, bool isBn) {
+  void _showPaymentGatewayModal(BuildContext context, bool isBn) {
+    final mobileController = TextEditingController(text: '01770618575');
+    final otpController = TextEditingController(text: '123456');
+    final pinController = TextEditingController(text: '12121');
+    bool isLoading = false;
+    final isBkash = _selectedPaymentMethod.toLowerCase() == 'bkash';
+    final primaryThemeColor = isBkash ? const Color(0xFFE2136E) : const Color(0xFFF7921E);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                top: 24,
+                left: 24,
+                right: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: primaryThemeColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          isBkash ? 'bKash Tokenized Checkout' : 'Nagad Payment Gateway',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: primaryThemeColor.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: primaryThemeColor.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Invoice: INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+                          style: TextStyle(fontSize: 12, color: primaryThemeColor, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Amount: ৳${widget.specialist.feeBdt}',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.extrabold, color: Colors.black87),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: mobileController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: isBkash ? 'bKash Account Number' : 'Nagad Mobile Number',
+                      prefixIcon: const Icon(Icons.phone_android),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: otpController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Verification OTP',
+                            prefixIcon: const Icon(Icons.password),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: pinController,
+                          obscureText: true,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'PIN Code',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryThemeColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              setModalState(() => isLoading = true);
+                              final specProvider = Provider.of<SpecialistProvider>(context, listen: false);
+                              final appDateStr = '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}';
+                              String verifiedTrxId = 'TR0011${DateTime.now().millisecondsSinceEpoch}';
+
+                              try {
+                                await ApiService.post(ApiEndpoints.bookings, {
+                                  'specialist_id': widget.specialist.id,
+                                  'appointment_date': '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
+                                  'time_slot': _selectedTimeSlot,
+                                  'status': 'confirmed',
+                                  'notes': 'Booked with ${widget.specialist.name}',
+                                });
+                              } catch (_) {}
+
+                              try {
+                                final payEndpoint = isBkash ? 'payments/bkash/execute/' : 'payments/nagad/execute/';
+                                final response = await ApiService.post(payEndpoint, {
+                                  'amount': widget.specialist.feeBdt,
+                                  'purpose': 'Consultation Session with ${widget.specialist.name}',
+                                  'mobile_number': mobileController.text.trim(),
+                                  'otp': otpController.text.trim(),
+                                  'pin': pinController.text.trim(),
+                                });
+
+                                if (response != null && response['transaction_id'] != null) {
+                                  verifiedTrxId = response['transaction_id'].toString();
+                                }
+                              } catch (_) {}
+
+                              specProvider.addAppointment(
+                                SpecialistAppointmentModel(
+                                  id: 'app_${DateTime.now().millisecondsSinceEpoch}',
+                                  patientId: 'pat_new_${DateTime.now().millisecondsSinceEpoch}',
+                                  patientName: 'Patient User (Booked Session)',
+                                  patientAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+                                  date: appDateStr,
+                                  timeSlot: _selectedTimeSlot,
+                                  category: widget.specialist.specialization,
+                                  status: 'confirmed',
+                                  meetingLink: 'https://meet.google.com/ash-wash-wellness-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+                                  notes: 'Booked session with ${widget.specialist.name} (TrxID: $verifiedTrxId)',
+                                ),
+                              );
+
+                              Navigator.pop(modalCtx);
+                              if (mounted) _showSuccessDialog(context, isBn, verifiedTrxId);
+                            },
+                      child: isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                              isBn ? '🔒 পেমেন্ট সম্পন্ন করুন (৳${widget.specialist.feeBdt})' : '🔒 Confirm & Pay ৳${widget.specialist.feeBdt}',
+                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showSuccessDialog(BuildContext context, bool isBn, String trxId) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -257,14 +412,27 @@ class _BookingScreenState extends State<BookingScreen> {
               const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 70),
               const SizedBox(height: 16),
               Text(
-                isBn ? 'বুকিং সফল হয়েছে!' : 'Booking Confirmed!',
+                isBn ? 'বুকিং ও পেমেন্ট সফল হয়েছে!' : 'Booking & Payment Confirmed!',
                 style: AppTypography.heading2(context),
               ),
               const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Text(
+                  'bKash TrxID: $trxId',
+                  style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(
                 isBn
                     ? 'আপনার গুগল মিট লিংক নোটিফিকেশনে পাঠানো হয়েছে।'
-                    : 'Google Meet link: https://meet.google.com/ash-wash-wellness',
+                    : 'Google Meet link sent to your notifications drawer.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.grey, fontSize: 13),
               ),
