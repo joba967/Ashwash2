@@ -1,5 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/providers/notification_provider.dart';
 import '../../community/community_screen.dart';
@@ -99,6 +101,23 @@ class _NotificationScreenState extends State<NotificationScreen> {
       grouped[group]?.add(item);
     }
     return grouped;
+  }
+
+  String? _extractUrl(String text) {
+    final regExp = RegExp(r'https?://[^\s)]+', caseSensitive: false);
+    final match = regExp.firstMatch(text);
+    return match?.group(0);
+  }
+
+  Future<void> _launchExternalUrl(String urlStr) async {
+    try {
+      final uri = Uri.parse(urlStr.trim());
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(uri);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -247,6 +266,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final color = _getColorForType(notif.type);
     final icon = _getIconForType(notif.type);
     final isUnread = !notif.isRead;
+    final extractedUrl = _extractUrl('${notif.title} ${notif.body}');
 
     return Dismissible(
       key: Key('notif_${notif.id}'),
@@ -269,7 +289,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
           if (isUnread) {
             provider.markAsRead(notif.id);
           }
-          _handleNotificationNavigation(context, notif);
+          if (extractedUrl != null) {
+            _launchExternalUrl(extractedUrl);
+          } else {
+            _handleNotificationNavigation(context, notif);
+          }
         },
         child: Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -345,14 +369,28 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      notif.body,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isUnread ? const Color(0xFF334155) : const Color(0xFF64748B),
-                        height: 1.35,
+
+                    // Render Clickable Body Text
+                    _buildClickableNotificationBody(notif.body, isUnread),
+
+                    // Direct Action Join Button if URL Present
+                    if (extractedUrl != null) ...[
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: () => _launchExternalUrl(extractedUrl),
+                        icon: const Icon(Icons.video_call_rounded, color: Colors.white, size: 18),
+                        label: const Text(
+                          'Join Video Session ➔',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -373,6 +411,69 @@ class _NotificationScreenState extends State<NotificationScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildClickableNotificationBody(String text, bool isUnread) {
+    final regExp = RegExp(r'https?://[^\s)]+', caseSensitive: false);
+    final matches = regExp.allMatches(text);
+
+    if (matches.isEmpty) {
+      return Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          color: isUnread ? const Color(0xFF334155) : const Color(0xFF64748B),
+          height: 1.35,
+        ),
+      );
+    }
+
+    final spans = <InlineSpan>[];
+    int lastMatchEnd = 0;
+
+    for (final match in matches) {
+      if (match.start > lastMatchEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastMatchEnd, match.start),
+          style: TextStyle(
+            fontSize: 13,
+            color: isUnread ? const Color(0xFF334155) : const Color(0xFF64748B),
+            height: 1.35,
+          ),
+        ));
+      }
+
+      final urlStr = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: urlStr,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Color(0xFF2563EB),
+            fontWeight: FontWeight.bold,
+            decoration: TextDecoration.underline,
+            height: 1.35,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => _launchExternalUrl(urlStr),
+        ),
+      );
+
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastMatchEnd),
+        style: TextStyle(
+          fontSize: 13,
+          color: isUnread ? const Color(0xFF334155) : const Color(0xFF64748B),
+          height: 1.35,
+        ),
+      ));
+    }
+
+    return RichText(text: TextSpan(children: spans));
   }
 
   void _handleNotificationNavigation(BuildContext context, NotificationModel notif) {
@@ -431,4 +532,3 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 }
-
