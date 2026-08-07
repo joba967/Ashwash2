@@ -3,6 +3,7 @@ const API_BASE = 'https://ashwash-backend.onrender.com/api';
 let cachedUsers = [];
 let cachedSpecialists = [];
 let cachedCourses = [];
+let cachedPayments = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('adminLoginForm');
@@ -336,26 +337,45 @@ function openCoursesModal() {
     modal.show();
 }
 
-// Modal Trigger 4: Open Dedicated Appointments Modal Popup
-function openAppointmentsModal() {
-    const tbody = document.getElementById('appointmentsModalTableBody');
-    if (tbody) {
-        tbody.innerHTML = `
-            <tr>
-                <td>#101</td>
-                <td class="fw-bold text-white">Tanvir Hasan</td>
-                <td>Dr. Mekhala Sarkar</td>
-                <td><span class="badge bg-success">Confirmed</span></td>
-            </tr>
-            <tr>
-                <td>#102</td>
-                <td class="fw-bold text-white">Sadia Rahman</td>
-                <td>Dr. Anisur Rahman</td>
-                <td><span class="badge bg-primary">Completed</span></td>
-            </tr>
-        `;
+function renderPaymentTable(paymentsToRender, targetTbodyId = 'paymentsTableBody') {
+    const tbody = document.getElementById(targetTbodyId);
+    if (!tbody) return;
+
+    if (!paymentsToRender || paymentsToRender.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary py-4">No payment transactions recorded yet.</td></tr>';
+        return;
     }
-    const modal = new bootstrap.Modal(document.getElementById('appointmentsModal'));
+
+    tbody.innerHTML = paymentsToRender.map(p => {
+        const isBkash = (p.method || '').toLowerCase() === 'bkash';
+        const badgeColor = isBkash ? 'style="background-color: #E2136E; color: white;"' : 'style="background-color: #F7921E; color: white;"';
+        return `
+        <tr>
+            <td>#${p.id}</td>
+            <td class="fw-bold text-white">${p.username || 'Patient'}</td>
+            <td><span class="badge rounded-pill px-3 py-1 fw-bold" ${badgeColor}>${p.method ? p.method.toUpperCase() : 'bKash'}</span></td>
+            <td><code>${p.transaction_id || 'BKASH-892341'}</code></td>
+            <td class="text-light">${p.purpose || 'Service Payment'}</td>
+            <td class="fw-bold text-success">৳${p.amount}</td>
+            <td>${p.created_at || 'Recent'}</td>
+            <td><span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> COMPLETED</span></td>
+        </tr>
+    `;}).join('');
+}
+
+function filterPayments(gateway) {
+    if (gateway === 'ALL') {
+        renderPaymentTable(cachedPayments, 'paymentsTableBody');
+    } else {
+        const filtered = cachedPayments.filter(p => (p.method || '').toLowerCase() === gateway.toLowerCase());
+        renderPaymentTable(filtered, 'paymentsTableBody');
+    }
+}
+
+// Modal Trigger 5: Open Dedicated Payments Audit Popup
+function openPaymentsModal() {
+    renderPaymentTable(cachedPayments, 'paymentsModalTableBody');
+    const modal = new bootstrap.Modal(document.getElementById('paymentsModal'));
     modal.show();
 }
 
@@ -439,6 +459,9 @@ async function loadAdminDashboard() {
             document.getElementById('statSpecialists').textContent = m.total_specialists || 0;
             document.getElementById('statCourses').textContent = m.total_courses || 0;
             document.getElementById('statAppointments').textContent = m.total_appointments || 0;
+            if (document.getElementById('statRevenue')) {
+                document.getElementById('statRevenue').textContent = `৳${m.total_revenue || 0}`;
+            }
             if (document.getElementById('badgePendingCourses')) {
                 document.getElementById('badgePendingCourses').textContent = m.pending_courses || 0;
             }
@@ -492,5 +515,13 @@ async function loadAdminDashboard() {
         const courses = await res.json();
         cachedCourses = courses || [];
         filterAdminCourses('PENDING');
+    } catch (_) {}
+
+    // Fetch Payment Transactions
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/admin-payments/`, { headers });
+        const txs = await res.json();
+        cachedPayments = txs || [];
+        renderPaymentTable(cachedPayments, 'paymentsTableBody');
     } catch (_) {}
 }

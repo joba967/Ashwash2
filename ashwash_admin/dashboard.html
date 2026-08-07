@@ -9,17 +9,12 @@
             window.location.href = 'index.html';
         }
     </script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Toast Container for Notifications -->
-    <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
-
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg border-bottom border-secondary border-opacity-25 bg-dark px-4 py-3 sticky-top">
         <div class="container-fluid">
@@ -28,12 +23,6 @@
                 Ashwash Executive Admin Portal
             </a>
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-outline-light btn-sm rounded-3 position-relative" id="notifBellBtn" onclick="openNotificationsPanel()" title="View Real-Time Notifications">
-                    <i class="fa-solid fa-bell"></i>
-                    <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
-                        0
-                    </span>
-                </button>
                 <a href="https://ashwash-backend.onrender.com/admin/" target="_blank" class="btn btn-outline-warning btn-sm rounded-3"><i class="fa-solid fa-database me-1"></i> Django Core Admin</a>
                 <a href="profile.html" class="btn btn-outline-info btn-sm rounded-3"><i class="fa-solid fa-user-gear me-1"></i> Manage Account</a>
                 <button class="btn btn-outline-danger btn-sm rounded-3" onclick="logoutAdmin()"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</button>
@@ -72,12 +61,12 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openAppointmentsModal()" title="Click to view Session Bookings">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openPaymentsModal()" title="Click to view Payment Transactions">
                     <div>
-                        <div class="text-secondary small fw-semibold">Session Bookings</div>
-                        <div class="fs-3 fw-bold text-white" id="statAppointments">0</div>
+                        <div class="text-secondary small fw-semibold">Total Revenue (bKash/Nagad)</div>
+                        <div class="fs-3 fw-bold text-success" id="statRevenue">৳0</div>
                     </div>
-                    <div class="stat-icon bg-warning bg-opacity-25 text-warning"><i class="fa-solid fa-calendar-check"></i></div>
+                    <div class="stat-icon bg-success bg-opacity-25 text-success"><i class="fa-solid fa-money-bill-wave"></i></div>
                 </div>
             </div>
         </div>
@@ -93,6 +82,11 @@
             <li class="nav-item">
                 <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#courses-admin-tab">
                     <i class="fa-solid fa-book-open-reader me-2 text-warning"></i> Course Approval Requests <span class="badge bg-danger rounded-pill ms-1" id="badgePendingCourses">0</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#payments-admin-tab">
+                    <i class="fa-solid fa-wallet me-2 text-success"></i> bKash & Nagad Payments
                 </button>
             </li>
         </ul>
@@ -166,6 +160,41 @@
                     </div>
 
                     <div class="row g-3" id="coursesAdminContainer"></div>
+                </div>
+            </div>
+
+            <!-- TAB 4: BKASH & NAGAD PAYMENTS -->
+            <div class="tab-pane fade" id="payments-admin-tab">
+                <div class="card-custom p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h5 class="fw-bold text-white mb-1"><i class="fa-solid fa-wallet me-2 text-success"></i> bKash & Nagad Payment Transactions</h5>
+                            <p class="text-secondary small mb-0">Live audit log of all patient payments, course purchases, and consultation fees.</p>
+                        </div>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-success active" onclick="filterPayments('ALL')">All Gateways</button>
+                            <button type="button" class="btn btn-outline-pink text-white" style="background-color: #E2136E; border: none;" onclick="filterPayments('bkash')">bKash Only</button>
+                            <button type="button" class="btn btn-outline-warning text-white" style="background-color: #F7921E; border: none;" onclick="filterPayments('nagad')">Nagad Only</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-custom mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Patient Name</th>
+                                    <th>Gateway</th>
+                                    <th>Transaction ID (TrxID)</th>
+                                    <th>Purpose</th>
+                                    <th>Amount (BDT)</th>
+                                    <th>Date & Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentsTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -253,12 +282,12 @@
         </div>
     </div>
 
-    <!-- Modal 4: Dedicated Appointments Modal -->
-    <div class="modal fade" id="appointmentsModal" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <!-- Modal 5: Dedicated Payments Audit Popup -->
+    <div class="modal fade" id="paymentsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content bg-dark text-white border-secondary">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title fw-bold text-warning"><i class="fa-solid fa-calendar-check me-2"></i> Patient Session Bookings</h5>
+                    <h5 class="modal-title fw-bold text-success"><i class="fa-solid fa-wallet me-2"></i> bKash & Nagad Payment Audit Hub</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
@@ -267,12 +296,16 @@
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Patient Name</th>
-                                    <th>Specialist Doctor</th>
-                                    <th>Booking Status</th>
+                                    <th>Patient Username</th>
+                                    <th>Gateway</th>
+                                    <th>TrxID</th>
+                                    <th>Purpose</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
-                            <tbody id="appointmentsModalTableBody"></tbody>
+                            <tbody id="paymentsModalTableBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -280,35 +313,7 @@
         </div>
     </div>
 
-    <!-- Notifications Offcanvas Drawer -->
-    <div class="offcanvas offcanvas-end bg-dark text-white border-start border-secondary border-opacity-25" tabindex="-1" id="notificationsOffcanvas" aria-labelledby="notificationsOffcanvasLabel" style="width: 420px; max-width: 90vw; z-index: 1080;">
-        <div class="offcanvas-header border-bottom border-secondary border-opacity-25 py-3">
-            <div class="d-flex align-items-center gap-2">
-                <span class="bg-primary bg-opacity-25 text-primary rounded-circle p-2 d-inline-flex align-items-center justify-content-center" style="width:36px;height:36px;">
-                    <i class="fa-solid fa-bell"></i>
-                </span>
-                <div>
-                    <h6 class="offcanvas-title fw-bold text-white mb-0" id="notificationsOffcanvasLabel">System Notifications</h6>
-                    <small class="text-secondary" style="font-size: 11px;">Real-Time Activity Feed</small>
-                </div>
-            </div>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-        </div>
-        <div class="d-flex align-items-center justify-content-between px-3 py-2 bg-secondary bg-opacity-10 border-bottom border-secondary border-opacity-25">
-            <button class="btn btn-link btn-sm text-primary p-0 text-decoration-none small" style="font-size: 12px;" onclick="markAllNotificationsRead()">
-                <i class="fa-solid fa-check-double me-1"></i> Mark All as Read
-            </button>
-            <button class="btn btn-link btn-sm text-danger p-0 text-decoration-none small" style="font-size: 12px;" onclick="clearAllNotifications()">
-                <i class="fa-solid fa-trash-can me-1"></i> Clear All
-            </button>
-        </div>
-        <div class="offcanvas-body p-3" id="notificationsList" style="overflow-y: auto;">
-            <!-- Rendered dynamically by notifications.js -->
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
-    <script src="notifications.js"></script>
 </body>
 </html>

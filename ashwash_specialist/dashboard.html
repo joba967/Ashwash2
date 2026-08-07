@@ -348,6 +348,62 @@
                     <img id="zoomedAvatarImg" src="" alt="Full Profile Photo" class="img-fluid rounded-4 shadow-lg border border-2 border-purple" style="max-height: 80vh; object-fit: contain;">
                 </div>
             </div>
+    <!-- Modal: bKash & Nagad Payment Gateway Modal -->
+    <div class="modal fade" id="paymentGatewayModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold text-white"><i class="fa-solid fa-credit-card me-2 text-success"></i> Payment Gateway (bKash & Nagad)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="paymentGatewayForm" onsubmit="handleExecutePayment(event)">
+                    <input type="hidden" id="payCourseId">
+                    <input type="hidden" id="payAppointmentId">
+                    <input type="hidden" id="payAmount" value="1500">
+                    <input type="hidden" id="payGateway" value="bkash">
+
+                    <div class="modal-body p-4">
+                        <div class="p-3 rounded-3 mb-4 border border-secondary border-opacity-25 bg-secondary bg-opacity-10 text-center">
+                            <div class="text-secondary small fw-semibold" id="payPurpose">Specialist Consultation Session</div>
+                            <div class="fs-2 fw-bold text-success" id="payDisplayAmount">৳1500.00</div>
+                        </div>
+
+                        <!-- Gateway Selection Tabs -->
+                        <div class="d-flex gap-2 mb-4">
+                            <button type="button" id="btnSelectBkash" class="btn w-50 py-2 fw-bold rounded-3 text-white border-0 shadow" style="background: linear-gradient(135deg, #E2136E, #C2185B);" onclick="selectGateway('bkash')">
+                                <i class="fa-solid fa-mobile-screen me-1"></i> bKash
+                            </button>
+                            <button type="button" id="btnSelectNagad" class="btn w-50 py-2 fw-bold rounded-3 text-white border-0 opacity-50" style="background: linear-gradient(135deg, #F7921E, #E65100);" onclick="selectGateway('nagad')">
+                                <i class="fa-solid fa-wallet me-1"></i> Nagad
+                            </button>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small fw-semibold" id="labelMobileNo">bKash Account Number</label>
+                            <input type="text" id="payMobileNumber" class="form-control text-white" value="01770618575" placeholder="017XXXXXXXX" required>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small fw-semibold">Verification OTP</label>
+                                <input type="text" id="payOTP" class="form-control text-white" value="123456" placeholder="123456" required>
+                                <div class="form-text text-secondary style-italic" style="font-size: 10px;">Test OTP: 123456</div>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small fw-semibold">Account PIN</label>
+                                <input type="password" id="payPIN" class="form-control text-white" value="12121" placeholder="*****" required>
+                                <div class="form-text text-secondary style-italic" style="font-size: 10px;">Test PIN: 12121</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" id="btnSubmitPayment" class="btn fw-bold px-4 py-2 text-white border-0 rounded-3" style="background: linear-gradient(135deg, #E2136E, #C2185B);">
+                            <i class="fa-solid fa-lock me-1"></i> Pay ৳1500 with bKash
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 

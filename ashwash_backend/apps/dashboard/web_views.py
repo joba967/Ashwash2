@@ -180,6 +180,9 @@ class AdminMetricsAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        from apps.payments.models import PaymentTransaction
+        from django.db.models import Sum
+        total_rev = PaymentTransaction.objects.filter(status='success').aggregate(Sum('amount'))['amount__sum'] or 0.00
         data = {
             'total_users': User.objects.count(),
             'total_patients': User.objects.filter(role='PATIENT').count(),
@@ -189,7 +192,29 @@ class AdminMetricsAPIView(APIView):
             'total_posts': Post.objects.count(),
             'pending_verifications': SpecialistProfile.objects.filter(is_profile_complete=False).count(),
             'pending_courses': Course.objects.filter(is_approved=False).count(),
+            'total_revenue': float(total_rev),
         }
+        return Response(data)
+
+class AdminPaymentsListAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from apps.payments.models import PaymentTransaction
+        txs = PaymentTransaction.objects.select_related('user').all().order_by('-created_at')
+        data = []
+        for t in txs:
+            data.append({
+                'id': t.id,
+                'username': t.user.username if t.user else 'Patient',
+                'email': t.user.email if t.user else '-',
+                'method': t.method,
+                'amount': float(t.amount),
+                'purpose': t.purpose,
+                'transaction_id': t.transaction_id,
+                'status': t.status,
+                'created_at': t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else ''
+            })
         return Response(data)
 
 class AdminSpecialistsListAPIView(APIView):
