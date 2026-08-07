@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/localization/app_language_provider.dart';
+import '../../core/network/api_service.dart' as app_api;
 import '../../core/providers/specialist_provider.dart';
-import '../../core/services/api_service.dart';
+import '../../core/services/api_service.dart' as mock_api;
 import '../../data/models/specialist_model.dart';
 import 'booking_screen.dart';
 
@@ -18,6 +19,66 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
   String _selectedTab = 'All';
   String _searchQuery = '';
   final TextEditingController _searchCtrl = TextEditingController();
+  List<SpecialistModel> _fetchedLiveSpecialists = [];
+  bool _isLoadingLive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLiveSpecialists();
+  }
+
+  Future<void> _fetchLiveSpecialists() async {
+    try {
+      final List<dynamic> list = await app_api.ApiService.getList('dashboard/admin-specialists/');
+      if (list.isNotEmpty) {
+        final List<SpecialistModel> parsed = [];
+        for (var item in list) {
+          if (item is Map) {
+            final id = item['id'] is int ? item['id'] : int.tryParse(item['id'].toString()) ?? 999;
+            final fullName = item['full_name']?.toString().trim();
+            final username = item['user_username']?.toString().trim();
+            final name = (fullName != null && fullName.isNotEmpty) ? fullName : ((username != null && username.isNotEmpty) ? 'Dr. $username' : 'Specialist Doctor');
+            final spec = item['specialization']?.toString() ?? 'Clinical Psychologist';
+            final qual = item['qualification']?.toString() ?? 'FCPS / M.Phil';
+
+            parsed.add(
+              SpecialistModel(
+                id: id,
+                name: name,
+                degree: qual,
+                specialization: spec,
+                workingPlace: 'Ashwash Wellness Center',
+                imageUrl: 'https://corecdn.doctime.com.bd/persons/578875/profile_photos/Fe6ibomQLhBJuUQFq4cjQGkAnPeWDtUsO8AOMqIn.png',
+                titleEn: spec,
+                titleBn: 'মানসিক স্বাস্থ্য বিশেষজ্ঞ',
+                bioEn: 'Registered Clinical Specialist at Ashwash Mental Health Platform.',
+                bioBn: 'আশবাস মানসিক স্বাস্থ্য প্ল্যাটফর্মের নিবন্ধিত বিশেষজ্ঞ চিকিৎসক।',
+                experienceYears: 10,
+                rating: 4.9,
+                feeBdt: 1500,
+                locationType: 'Dhaka',
+                isAvailable: true,
+                isOnline: true,
+              ),
+            );
+          }
+        }
+
+        if (parsed.isNotEmpty && mounted) {
+          setState(() {
+            _fetchedLiveSpecialists = parsed;
+            _isLoadingLive = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() => _isLoadingLive = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -31,12 +92,18 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final specProvider = Provider.of<SpecialistProvider>(context);
 
-    // Dynamic Specialists List including registered profile
-    final List<SpecialistModel> allSpecialists = ApiService().getMockSpecialists();
-    
-    // Convert registered SpecialistProvider profile into SpecialistModel if present
+    // Combine Live Backend Specialists + Local Provider Profile + Mock Fallbacks
+    final List<SpecialistModel> allSpecialists = [];
+
+    if (_fetchedLiveSpecialists.isNotEmpty) {
+      allSpecialists.addAll(_fetchedLiveSpecialists);
+    } else {
+      allSpecialists.addAll(mock_api.ApiService().getMockSpecialists());
+    }
+
+    // Ensure currently registered profile from SpecialistProvider is present
     final regSpec = specProvider.profile;
-    if (regSpec.isProfileComplete || regSpec.fullName.isNotEmpty) {
+    if (regSpec.fullName.isNotEmpty) {
       final exists = allSpecialists.any((s) => s.name.toLowerCase().contains(regSpec.fullName.toLowerCase()));
       if (!exists) {
         allSpecialists.insert(
@@ -75,8 +142,6 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
           spec.degree.toLowerCase().contains(q);
 
       if (!matchesSearch) return false;
-
-      // If user typed a search query, show all matching doctors across tabs
       if (q.isNotEmpty) return true;
 
       if (_selectedTab == 'Psychologists') {
@@ -161,28 +226,30 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
 
           // Specialist Card List
           Expanded(
-            child: filteredSpecialists.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.search_off_rounded, size: 54, color: Colors.grey),
-                        const SizedBox(height: 10),
-                        Text(
-                          isBn ? 'কোনো বিশেষজ্ঞ পাওয়া যায়নি' : 'No specialist found',
-                          style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade600),
+            child: _isLoadingLive
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : (filteredSpecialists.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.search_off_rounded, size: 54, color: Colors.grey),
+                            const SizedBox(height: 10),
+                            Text(
+                              isBn ? 'কোনো বিশেষজ্ঞ পাওয়া যায়নি' : 'No specialist found',
+                              style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade600),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: filteredSpecialists.length,
-                    itemBuilder: (context, index) {
-                      final spec = filteredSpecialists[index];
-                      return _buildSpecialistCard(spec, isBn, isDark);
-                    },
-                  ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(20),
+                        itemCount: filteredSpecialists.length,
+                        itemBuilder: (context, index) {
+                          final spec = filteredSpecialists[index];
+                          return _buildSpecialistCard(spec, isBn, isDark);
+                        },
+                      )),
           ),
         ],
       ),

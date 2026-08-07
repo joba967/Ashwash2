@@ -28,11 +28,17 @@ class ApiService {
   }
 
   static String _buildUrl(String rawUrl, String host) {
-    if (rawUrl.contains('/api/')) {
-      final path = rawUrl.substring(rawUrl.indexOf('/api/') + 5);
-      return '$host/$path';
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      return rawUrl;
     }
-    return rawUrl;
+    String path = rawUrl;
+    if (rawUrl.contains('/api/')) {
+      path = rawUrl.substring(rawUrl.indexOf('/api/') + 5);
+    }
+    if (path.startsWith('/')) {
+      path = path.substring(1);
+    }
+    return '$host/$path';
   }
 
   static Future<dynamic> _executeWithFallback(
