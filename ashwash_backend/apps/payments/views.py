@@ -31,68 +31,74 @@ def get_bkash_grant_token():
             "Content-Type": "application/json",
             "username": BKASH_USERNAME,
             "password": BKASH_PASSWORD,
+            "app_key": BKASH_APP_KEY,
+            "app_secret": BKASH_APP_SECRET,
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         req = urllib.request.Request(url, data=payload, headers=headers, method='POST')
-        with urllib.request.urlopen(req, context=ssl_ctx, timeout=8) as response:
+        with urllib.request.urlopen(req, context=ssl_ctx, timeout=15) as response:
             res_data = json.loads(response.read().decode('utf-8'))
-            return res_data.get('id_token')
+            return res_data.get('id_token'), None
+    except urllib.error.HTTPError as e:
+        err_msg = f"HTTP {e.code}: {e.read().decode('utf-8', errors='ignore')}"
+        print("bKash grant token HTTP error:", err_msg)
+        return None, err_msg
     except Exception as e:
-        print("bKash grant token connection note:", e)
-        return None
+        err_msg = f"Exception: {str(e)}"
+        print("bKash grant token error:", err_msg)
+        return None, err_msg
 
 def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="01770618575"):
-    token = get_bkash_grant_token()
-    if token:
+    token, err = get_bkash_grant_token()
+    if not token:
+        return None, None, f"Grant Token Failed: {err}"
+
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+
+    try:
+        url_create = f"{BKASH_BASE_URL}/tokenized/checkout/create"
+        payload_create = json.dumps({
+            "mode": "0011",
+            "payerReference": payer_ref,
+            "callbackURL": "https://ashwash-backend.onrender.com/api/payments/bkash/callback/",
+            "amount": str(amount),
+            "currency": "BDT",
+            "intent": "sale",
+            "merchantInvoiceNumber": str(invoice_no)
+        }).encode('utf-8')
+        headers_create = {
+            "Content-Type": "application/json",
+            "Authorization": token,
+            "X-APP-Key": BKASH_APP_KEY,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+        req_create = urllib.request.Request(url_create, data=payload_create, headers=headers_create, method='POST')
+        with urllib.request.urlopen(req_create, context=ssl_ctx, timeout=15) as resp_create:
+            data_create = json.loads(resp_create.read().decode('utf-8'))
+            payment_id = data_create.get('paymentID')
+            bkash_url = data_create.get('bkashURL')
+
+        if not payment_id:
+            return None, None, f"Create Payment Failed: {data_create}"
+
+        url_exec = f"{BKASH_BASE_URL}/tokenized/checkout/execute"
+        payload_exec = json.dumps({"paymentID": payment_id}).encode('utf-8')
+        req_exec = urllib.request.Request(url_exec, data=payload_exec, headers=headers_create, method='POST')
         try:
-            ssl_ctx = ssl.create_default_context()
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = ssl.CERT_NONE
+            with urllib.request.urlopen(req_exec, context=ssl_ctx, timeout=15) as resp_exec:
+                data_exec = json.loads(resp_exec.read().decode('utf-8'))
+                trx_id = data_exec.get('trxID')
+                if trx_id:
+                    return trx_id, bkash_url, None
+        except Exception:
+            pass
 
-            url_create = f"{BKASH_BASE_URL}/tokenized/checkout/create"
-            payload_create = json.dumps({
-                "mode": "0011",
-                "payerReference": payer_ref,
-                "callbackURL": "https://ashwash-backend.onrender.com/api/payments/bkash/callback/",
-                "amount": str(amount),
-                "currency": "BDT",
-                "intent": "sale",
-                "merchantInvoiceNumber": str(invoice_no)
-            }).encode('utf-8')
-            headers_create = {
-                "Content-Type": "application/json",
-                "Authorization": token,
-                "X-APP-Key": BKASH_APP_KEY,
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-            }
-            req_create = urllib.request.Request(url_create, data=payload_create, headers=headers_create, method='POST')
-            with urllib.request.urlopen(req_create, context=ssl_ctx, timeout=8) as resp_create:
-                data_create = json.loads(resp_create.read().decode('utf-8'))
-                payment_id = data_create.get('paymentID')
-                bkash_url = data_create.get('bkashURL')
-
-            if payment_id:
-                url_exec = f"{BKASH_BASE_URL}/tokenized/checkout/execute"
-                payload_exec = json.dumps({"paymentID": payment_id}).encode('utf-8')
-                req_exec = urllib.request.Request(url_exec, data=payload_exec, headers=headers_create, method='POST')
-                try:
-                    with urllib.request.urlopen(req_exec, context=ssl_ctx, timeout=8) as resp_exec:
-                        data_exec = json.loads(resp_exec.read().decode('utf-8'))
-                        trx_id = data_exec.get('trxID')
-                        if trx_id:
-                            return trx_id, bkash_url
-                except Exception:
-                    pass
-
-                return payment_id, bkash_url
-        except Exception as e:
-            print("bKash create/execute connection note:", e)
-
-    # Official bKash Tokenized Sandbox Payment ID format generated when cloud host is outside BD network
-    ts = int(time.time() * 1000)
-    official_format_id = f"TR00118tJdNeF{ts}"
-    official_checkout_url = f"https://sandbox.payment.bkash.com/?paymentId={official_format_id}&mode=0011"
-    return official_format_id, official_checkout_url
+        return payment_id, bkash_url, None
+    except Exception as e:
+        print("bKash create/execute error:", e)
+        return None, None, str(e)
 
 class InitiatePaymentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -147,7 +153,13 @@ class bKashExecutePaymentAPIView(APIView):
         mobile = request.data.get('mobile_number', '01770618575')
 
         invoice_no = f"INV{random.randint(100000, 999999)}"
-        tx_id, bkash_url = create_and_execute_bkash_sandbox_payment(amount=amount, invoice_no=invoice_no, payer_ref=mobile)
+        tx_id, bkash_url, err_detail = create_and_execute_bkash_sandbox_payment(amount=amount, invoice_no=invoice_no, payer_ref=mobile)
+
+        if not tx_id:
+            return Response({
+                'error': 'bKash Sandbox API Connection Error',
+                'details': err_detail
+            }, status=status.HTTP_502_BAD_GATEWAY)
 
         transaction = PaymentTransaction.objects.create(
             user=user,
