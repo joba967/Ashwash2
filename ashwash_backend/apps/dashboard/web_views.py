@@ -230,13 +230,30 @@ class AdminSpecialistsListAPIView(APIView):
             if not doc_name:
                 doc_name = f"Dr. Specialist #{s.id}"
 
+            pic_url = ''
+            if s.user and s.user.profile_picture:
+                try:
+                    pic_url = s.user.profile_picture.url if hasattr(s.user.profile_picture, 'url') else str(s.user.profile_picture)
+                except Exception:
+                    pic_url = str(s.user.profile_picture)
+            if not pic_url:
+                pic_url = 'https://corecdn.doctime.com.bd/persons/578875/profile_photos/Fe6ibomQLhBJuUQFq4cjQGkAnPeWDtUsO8AOMqIn.png'
+
             data.append({
                 'id': s.id,
                 'full_name': doc_name,
-                'specialization': s.specialization or 'Clinical Psychologist',
-                'qualification': s.qualification or 'MSc in Psychology',
+                'name': doc_name,
+                'specialization': s.specialization or 'Counseling Specialist',
+                'qualification': s.qualification or 'MSc in Clinical Psychology',
                 'medical_license_number': s.medical_license_number or 'BMDC-REG-98234',
+                'hospital_clinic': s.hospital_clinic or 'Ashwash Mental Wellness Center',
+                'experience_years': s.experience_years or 5,
+                'consultation_fee_bdt': s.consultation_fee_bdt or 1500,
+                'fee_bdt': s.consultation_fee_bdt or 1500,
+                'rating': float(s.rating) if s.rating else 4.9,
                 'is_verified': s.is_profile_complete,
+                'profile_picture': pic_url,
+                'image_url': pic_url,
                 'user_id': s.user.id if s.user else None,
                 'user_username': s.user.username if s.user else '',
             })

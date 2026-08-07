@@ -36,11 +36,17 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
         for (var item in list) {
           if (item is Map) {
             final id = item['id'] is int ? item['id'] : int.tryParse(item['id'].toString()) ?? 999;
-            final fullName = item['full_name']?.toString().trim();
+            final fullName = item['full_name']?.toString().trim() ?? item['name']?.toString().trim();
             final username = item['user_username']?.toString().trim();
-            final name = (fullName != null && fullName.isNotEmpty) ? fullName : ((username != null && username.isNotEmpty) ? 'Dr. $username' : 'Specialist Doctor');
-            final spec = item['specialization']?.toString() ?? 'Clinical Psychologist';
-            final qual = item['qualification']?.toString() ?? 'FCPS / M.Phil';
+            final name = (fullName != null && fullName.isNotEmpty)
+                ? fullName
+                : ((username != null && username.isNotEmpty) ? 'Dr. $username' : 'Specialist Doctor');
+            final spec = item['specialization']?.toString() ?? 'Counseling Specialist';
+            final qual = item['qualification']?.toString() ?? 'MSc in Clinical Psychology';
+            final fee = item['consultation_fee_bdt'] is int
+                ? item['consultation_fee_bdt']
+                : (int.tryParse(item['consultation_fee_bdt']?.toString() ?? '') ?? 1500);
+            final img = item['profile_picture']?.toString() ?? item['image_url']?.toString() ?? '';
 
             parsed.add(
               SpecialistModel(
@@ -48,15 +54,15 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
                 name: name,
                 degree: qual,
                 specialization: spec,
-                workingPlace: 'Ashwash Wellness Center',
-                imageUrl: 'https://corecdn.doctime.com.bd/persons/578875/profile_photos/Fe6ibomQLhBJuUQFq4cjQGkAnPeWDtUsO8AOMqIn.png',
+                workingPlace: item['hospital_clinic']?.toString() ?? 'Ashwash Mental Wellness Center',
+                imageUrl: img.isNotEmpty ? img : 'https://corecdn.doctime.com.bd/persons/578875/profile_photos/Fe6ibomQLhBJuUQFq4cjQGkAnPeWDtUsO8AOMqIn.png',
                 titleEn: spec,
-                titleBn: 'মানসিক স্বাস্থ্য বিশেষজ্ঞ',
-                bioEn: 'Registered Clinical Specialist at Ashwash Mental Health Platform.',
-                bioBn: 'আশবাস মানসিক স্বাস্থ্য প্ল্যাটফর্মের নিবন্ধিত বিশেষজ্ঞ চিকিৎসক।',
-                experienceYears: 10,
+                titleBn: 'ক্যাউন্সেলিং বিশেষজ্ঞ',
+                bioEn: 'Registered Counseling & Clinical Specialist at Ashwash Platform.',
+                bioBn: 'আশবাস মানসিক স্বাস্থ্য প্ল্যাটফর্মের নিবন্ধিত বিশেষজ্ঞ কাউন্সিলর।',
+                experienceYears: item['experience_years'] is int ? item['experience_years'] : 8,
                 rating: 4.9,
-                feeBdt: 1500,
+                feeBdt: fee,
                 locationType: 'Dhaka',
                 isAvailable: true,
                 isOnline: true,
@@ -146,12 +152,14 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
 
       if (_selectedTab == 'Psychologists') {
         return spec.specialization.toLowerCase().contains('psychologist') ||
-            spec.name.toLowerCase().contains('mekhala') ||
+            spec.specialization.toLowerCase().contains('counseling') ||
+            spec.name.toLowerCase().contains('jaba') ||
             spec.name.toLowerCase().contains('dr.');
       } else if (_selectedTab == 'Therapists') {
         return spec.specialization.toLowerCase().contains('therapist') ||
             spec.specialization.toLowerCase().contains('consultant') ||
-            spec.specialization.toLowerCase().contains('counseling');
+            spec.specialization.toLowerCase().contains('counseling') ||
+            spec.specialization.toLowerCase().contains('specialist');
       }
       return true;
     }).toList();
@@ -171,7 +179,7 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
               controller: _searchCtrl,
               onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
-                hintText: isBn ? 'ডাক্তারের নাম বা রোগ অনুযায়ী খুঁজুন...' : 'Search doctor by name (e.g. Dr. Mekhala)...',
+                hintText: isBn ? 'ডাক্তারের নাম বা রোগ অনুযায়ী খুঁজুন...' : 'Search doctor by name (e.g. jaba acharjee)...',
                 prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -277,7 +285,7 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
               // Avatar Image / Fallback
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: spec.imageUrl.isNotEmpty
+                child: spec.imageUrl.isNotEmpty && spec.imageUrl.startsWith('http')
                     ? Image.network(
                         spec.imageUrl,
                         width: 64,
