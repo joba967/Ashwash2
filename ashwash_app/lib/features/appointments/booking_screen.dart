@@ -32,8 +32,6 @@ class _BookingScreenState extends State<BookingScreen> {
   final List<Map<String, String>> _paymentMethods = [
     {'name': 'bKash', 'icon': '📱'},
     {'name': 'Nagad', 'icon': '📲'},
-    {'name': 'Rocket', 'icon': '🚀'},
-    {'name': 'Credit Card', 'icon': '💳'},
   ];
 
   @override

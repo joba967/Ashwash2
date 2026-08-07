@@ -730,41 +730,80 @@ async function loadSpecialistDashboard() {
         }
     } catch (_) {}
 
-    // Fetch Specialist Appointments
+    // Fetch Specialist Appointments & Payments
     try {
-        const res = await fetch(`${API_BASE}/appointments/bookings/`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const bookings = await res.json();
+        let doctorBookings = [];
+        
+        try {
+            const resApp = await fetch(`${API_BASE}/appointments/bookings/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resApp.ok) {
+                const bList = await resApp.json();
+                if (Array.isArray(bList)) doctorBookings.push(...bList);
+            }
+        } catch (_) {}
+
+        try {
+            const resPay = await fetch(`${API_BASE}/dashboard/admin-payments/`);
+            if (resPay.ok) {
+                const payList = await resPay.json();
+                if (Array.isArray(payList)) {
+                    const currentDocName = (document.getElementById('specialistName')?.textContent || '').toLowerCase();
+                    const filtered = payList.filter(p => {
+                        const purpose = (p.purpose || '').toLowerCase();
+                        return purpose.includes('session') || (currentDocName && purpose.includes(currentDocName));
+                    });
+                    filtered.forEach(p => {
+                        if (!doctorBookings.some(b => b.id === p.id || b.transaction_id === p.transaction_id)) {
+                            doctorBookings.push({
+                                id: p.id,
+                                patient_name: p.username || 'Patient User',
+                                appointment_date: p.created_at || 'Today',
+                                time_slot: p.method ? `${p.method.toUpperCase()} Paid` : 'Paid',
+                                status: 'Confirmed',
+                                is_paid: true,
+                                amount: p.amount,
+                                method: p.method
+                            });
+                        }
+                    });
+                }
+            }
+        } catch (_) {}
+
         const tbody = document.getElementById('appointmentsTableBody');
         const statAppointments = document.getElementById('statAppointments');
-        if (statAppointments) statAppointments.textContent = (bookings || []).length;
+        if (statAppointments) statAppointments.textContent = doctorBookings.length;
 
         if (tbody) {
-            tbody.innerHTML = (bookings || []).map(b => `
-                <tr>
-                    <td>#${b.id}</td>
-                    <td class="fw-bold text-white">${b.patient_name || 'Patient'}</td>
-                    <td>${b.appointment_date} at ${b.time_slot}</td>
-                    <td><span class="badge bg-success">${b.status}</span></td>
-                    <td><button class="btn btn-sm btn-outline-info rounded-3">Start Session</button></td>
-                </tr>
-            `).join('') || `
-                <tr>
-                    <td>#101</td>
-                    <td class="fw-bold text-white">Sadia Islam</td>
-                    <td>Today at 04:00 PM</td>
-                    <td><span class="badge bg-success">Confirmed</span></td>
-                    <td><button class="btn btn-sm btn-purple rounded-3"><i class="fa-solid fa-video me-1"></i> Start Video Session</button></td>
-                </tr>
-                <tr>
-                    <td>#102</td>
-                    <td class="fw-bold text-white">Nusrat Jahan</td>
-                    <td>Tomorrow at 11:00 AM</td>
-                    <td><span class="badge bg-primary">Scheduled</span></td>
-                    <td><button class="btn btn-sm btn-outline-light rounded-3"><i class="fa-solid fa-eye me-1"></i> View Details</button></td>
-                </tr>
-            `;
+            if (doctorBookings.length > 0) {
+                tbody.innerHTML = doctorBookings.map(b => {
+                    const isBkash = (b.method || '').toLowerCase() === 'bkash';
+                    const badgeBg = isBkash ? 'style="background-color: #E2136E; color: white;"' : 'style="background-color: #F7921E; color: white;"';
+                    return `
+                    <tr>
+                        <td>#${b.id}</td>
+                        <td class="fw-bold text-white">${b.patient_name || 'Patient'}</td>
+                        <td>${b.appointment_date} <span class="badge rounded-pill ms-1" ${badgeBg}>${(b.method || 'bKash').toUpperCase()} ৳${b.amount || 1500}</span></td>
+                        <td><span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Confirmed & Paid</span></td>
+                        <td>
+                            <a href="https://meet.google.com/ash-wash-wellness" target="_blank" class="btn btn-sm btn-purple rounded-3 px-3 py-1">
+                                <i class="fa-solid fa-video me-1"></i> Start Video Session
+                            </a>
+                        </td>
+                    </tr>
+                `;}).join('');
+            } else {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-secondary py-5">
+                            <i class="fa-solid fa-calendar-xmark fs-2 mb-2 text-secondary d-block"></i>
+                            No patient consultation bookings yet. Real-time patient bookings will appear here automatically once booked via bKash/Nagad.
+                        </td>
+                    </tr>
+                `;
+            }
         }
     } catch (_) {}
 
