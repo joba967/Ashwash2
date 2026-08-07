@@ -1,6 +1,7 @@
 import uuid
 import random
 import json
+import ssl
 import urllib.request
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
@@ -16,6 +17,10 @@ BKASH_APP_SECRET = "2is7hdktrekvrbljjh44ll3d9l1dtjo4pasmjvs5vl5qr3fug4b"
 
 def get_bkash_grant_token():
     try:
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+
         url = f"{BKASH_BASE_URL}/tokenized/checkout/token/grant"
         payload = json.dumps({
             "app_key": BKASH_APP_KEY,
@@ -28,7 +33,7 @@ def get_bkash_grant_token():
             "User-Agent": "Mozilla/5.0"
         }
         req = urllib.request.Request(url, data=payload, headers=headers, method='POST')
-        with urllib.request.urlopen(req, timeout=12) as response:
+        with urllib.request.urlopen(req, context=ssl_ctx, timeout=15) as response:
             res_data = json.loads(response.read().decode('utf-8'))
             return res_data.get('id_token')
     except Exception as e:
@@ -36,9 +41,13 @@ def get_bkash_grant_token():
         return None
 
 def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="01770618575"):
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+
     token = get_bkash_grant_token()
     if not token:
-        return f"TR0011{random.randint(1000000000000, 9999999999999)}", None
+        return None, None
 
     try:
         url_create = f"{BKASH_BASE_URL}/tokenized/checkout/create"
@@ -58,19 +67,19 @@ def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="0177
             "User-Agent": "Mozilla/5.0"
         }
         req_create = urllib.request.Request(url_create, data=payload_create, headers=headers_create, method='POST')
-        with urllib.request.urlopen(req_create, timeout=12) as resp_create:
+        with urllib.request.urlopen(req_create, context=ssl_ctx, timeout=15) as resp_create:
             data_create = json.loads(resp_create.read().decode('utf-8'))
             payment_id = data_create.get('paymentID')
             bkash_url = data_create.get('bkashURL')
 
         if not payment_id:
-            return f"TR0011{random.randint(1000000000000, 9999999999999)}", None
+            return None, None
 
         url_exec = f"{BKASH_BASE_URL}/tokenized/checkout/execute"
         payload_exec = json.dumps({"paymentID": payment_id}).encode('utf-8')
         req_exec = urllib.request.Request(url_exec, data=payload_exec, headers=headers_create, method='POST')
         try:
-            with urllib.request.urlopen(req_exec, timeout=12) as resp_exec:
+            with urllib.request.urlopen(req_exec, context=ssl_ctx, timeout=15) as resp_exec:
                 data_exec = json.loads(resp_exec.read().decode('utf-8'))
                 trx_id = data_exec.get('trxID')
                 if trx_id:
@@ -82,7 +91,7 @@ def create_and_execute_bkash_sandbox_payment(amount, invoice_no, payer_ref="0177
     except Exception as e:
         print("bKash create/execute error:", e)
 
-    return f"TR0011{random.randint(1000000000000, 9999999999999)}", None
+    return None, None
 
 class InitiatePaymentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -139,6 +148,9 @@ class bKashExecutePaymentAPIView(APIView):
         invoice_no = f"INV{random.randint(100000, 999999)}"
         tx_id, bkash_url = create_and_execute_bkash_sandbox_payment(amount=amount, invoice_no=invoice_no, payer_ref=mobile)
 
+        if not tx_id:
+            return Response({'error': 'Failed to connect to bKash Sandbox API. Please check network/credentials.'}, status=status.HTTP_502_BAD_GATEWAY)
+
         transaction = PaymentTransaction.objects.create(
             user=user,
             method='bkash',
@@ -174,8 +186,8 @@ class bKashExecutePaymentAPIView(APIView):
                 sender=None,
                 title_en=f"bKash Payment Successful: ৳{amount} 💳",
                 title_bn=f"বিকাশ পেমেন্ট সফল হয়েছে: ৳{amount} 💳",
-                message_en=f"Your payment of ৳{amount} for '{purpose}' via bKash Sandbox (TrxID: {tx_id}) was confirmed.",
-                message_bn=f"আপনার '{purpose}'-এর জন্য ৳{amount} বিকাশ স্যান্ডবক্স পেমেন্ট (TrxID: {tx_id}) সফল হয়েছে।",
+                message_en=f"Your payment of ৳{amount} for '{purpose}' via bKash Sandbox (PaymentID: {tx_id}) was confirmed.",
+                message_bn=f"আপনার '{purpose}'-এর জন্য ৳{amount} বিকাশ স্যান্ডবক্স পেমেন্ট (PaymentID: {tx_id}) সফল হয়েছে।",
                 category='PAYMENT'
             )
         except Exception:
