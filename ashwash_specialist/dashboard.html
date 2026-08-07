@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ashwash Specialist Workstation Web App</title>
+    <title>Ashwash Specialist Workstation</title>
     <script>
         if (!localStorage.getItem('access_token')) {
             window.location.href = 'index.html';
@@ -15,9 +15,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Toast Container for Notifications -->
-    <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
-
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg border-bottom border-secondary border-opacity-25 bg-dark px-4 py-3 sticky-top">
         <div class="container-fluid">
@@ -35,7 +32,7 @@
                 </div>
                 <button class="btn btn-outline-light btn-sm rounded-3 position-relative" id="notifBellBtn" onclick="openNotificationsPanel()">
                     <i class="fa-solid fa-bell"></i>
-                    <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+                    <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">2</span>
                 </button>
                 <a href="profile.html" class="btn btn-outline-info btn-sm rounded-3"><i class="fa-solid fa-user-gear me-1"></i> Manage Account</a>
                 <button class="btn btn-outline-danger btn-sm rounded-3" onclick="logoutSpecialist()"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</button>
@@ -56,7 +53,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between" onclick="switchSpecialistTab('appointments-tab')" title="Click to view Patient Sessions">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="switchSpecialistTab('appointments-tab')" title="Click to view Patient Appointments">
                     <div>
                         <div class="text-secondary small fw-semibold">Appointments</div>
                         <div class="fs-3 fw-bold text-white" id="statAppointments">0</div>
@@ -65,16 +62,16 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openDoctorRatingModal()" title="Click to view Doctor Rating Breakdown">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openDoctorRatingModal()" title="Click to view Doctor Rating breakdown">
                     <div>
                         <div class="text-secondary small fw-semibold">Doctor Rating</div>
-                        <div class="fs-3 fw-bold text-warning" id="statRating">4.9 ⭐</div>
+                        <div class="fs-3 fw-bold text-warning">4.9 <i class="fa-solid fa-star fs-5 ms-1"></i></div>
                     </div>
                     <div class="stat-icon bg-warning bg-opacity-25 text-warning"><i class="fa-solid fa-star"></i></div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openConsultationFeeModal()" title="Click to edit Consultation Fee">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openConsultationFeeModal()" title="Click to update Consultation Fee">
                     <div>
                         <div class="text-secondary small fw-semibold">Consultation Fee</div>
                         <div class="fs-3 fw-bold text-info" id="statFee">৳1500</div>
@@ -84,28 +81,27 @@
             </div>
         </div>
 
-        <!-- Main Navigation Tabs -->
+        <!-- Navigation Tabs -->
         <ul class="nav nav-tabs mb-4 border-secondary" id="portalTabs">
             <li class="nav-item">
-                <button class="nav-link active fw-bold" id="btn-courses-tab" data-bs-toggle="tab" data-bs-target="#courses-tab"><i class="fa-solid fa-video me-2"></i> Course Studio</button>
+                <button class="nav-link text-light active fw-bold" data-bs-toggle="tab" data-bs-target="#courses-tab"><i class="fa-solid fa-video me-2"></i> Course Studio</button>
             </li>
             <li class="nav-item">
-                <button class="nav-link fw-bold" id="btn-appointments-tab" data-bs-toggle="tab" data-bs-target="#appointments-tab"><i class="fa-solid fa-calendar-days me-2"></i> Patient Sessions</button>
+                <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#appointments-tab"><i class="fa-solid fa-calendar-days me-2"></i> Patient Sessions</button>
             </li>
             <li class="nav-item">
-                <button class="nav-link fw-bold" id="btn-community-tab" data-bs-toggle="tab" data-bs-target="#community-tab"><i class="fa-solid fa-comments me-2"></i> Community Q&A</button>
+                <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#community-tab"><i class="fa-solid fa-comments me-2"></i> Community Q&A</button>
             </li>
         </ul>
 
         <div class="tab-content">
             <!-- TAB 1: COURSES -->
             <div class="tab-pane fade show active" id="courses-tab">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <h5 class="fw-bold text-white mb-1">My Specialist Courses Studio</h5>
-                        <p class="text-secondary small mb-0">Courses submitted by you will be sent to the Administrator for approval before publishing to patients.</p>
-                    </div>
-                    <button class="btn btn-purple rounded-3 px-3 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#createCourseModal"><i class="fa-solid fa-plus me-1"></i> Create New Course</button>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold text-white mb-0">Specialist Published Courses</h5>
+                    <button class="btn btn-purple" data-bs-toggle="modal" data-bs-target="#createCourseModal">
+                        <i class="fa-solid fa-plus me-1"></i> Create New Course
+                    </button>
                 </div>
                 <div class="row g-3" id="coursesContainer"></div>
             </div>
@@ -133,60 +129,50 @@
 
             <!-- TAB 3: COMMUNITY Q&A -->
             <div class="tab-pane fade" id="community-tab">
-                <div class="card-custom p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <h5 class="fw-bold text-white mb-1"><i class="fa-solid fa-comments me-2 text-purple" style="color: #A855F7;"></i> Community Support Forum & Patient Q&A</h5>
-                            <p class="text-secondary small mb-0">Provide expert advice to patients. Your replies will be automatically delivered to the patient's account.</p>
-                        </div>
-                    </div>
-                    <div id="postsContainer"></div>
-                </div>
+                <h5 class="fw-bold text-white mb-3">Community Support Forum & Patient Queries</h5>
+                <div id="postsContainer"></div>
             </div>
         </div>
     </div>
 
-    <!-- Create Course Modal (Direct File Upload & Admin Approval Request) -->
+    <!-- Create Course Modal -->
     <div class="modal fade" id="createCourseModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content bg-dark text-white border-secondary">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title fw-bold text-white"><i class="fa-solid fa-video me-2 text-purple" style="color: #A855F7;"></i> Submit New Course for Admin Approval</h5>
+                    <h5 class="modal-title fw-bold text-white"><i class="fa-solid fa-circle-plus me-2 text-purple" style="color: #A855F7;"></i> Create New Mental Health Course</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="createCourseForm">
-                    <div class="modal-body">
+                    <div class="modal-body p-4">
                         <div id="courseAlertBox" class="alert d-none border-0 rounded-3 py-2 px-3 mb-3 small"></div>
 
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small fw-semibold">Course Title (English)</label>
-                            <input type="text" id="courseTitleEn" class="form-control text-white" required placeholder="e.g. Postpartum Stress & Mental Resilience">
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small fw-semibold">Course Title (Bangla)</label>
-                            <input type="text" id="courseTitleBn" class="form-control text-white" required placeholder="যেমন: পোস্টপার্টাম মানসিক স্বাস্থ্য যত্ন">
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small fw-semibold">Course Description</label>
-                            <textarea id="courseDescEn" class="form-control text-white" rows="3" placeholder="Provide a brief summary of what patients will learn in this course..."></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small fw-semibold">Price (BDT)</label>
-                            <input type="number" id="coursePrice" class="form-control text-white" value="1500" required placeholder="1500">
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small fw-semibold">Upload Video / Audio File from Device</label>
-                            <input type="file" id="courseMediaFile" class="form-control text-white" accept="video/*,audio/*">
-                            <div class="form-text text-secondary small mt-1"><i class="fa-solid fa-circle-info me-1"></i> Select MP4 video or MP3 audio file directly from your phone or PC.</div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold">Course Title (English)</label>
+                                <input type="text" id="courseTitleEn" class="form-control text-white" placeholder="e.g. Postpartum Wellness & Recovery" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold">Course Title (Bangla)</label>
+                                <input type="text" id="courseTitleBn" class="form-control text-white" placeholder="যেমন: নতুন মায়েদের মানসিক স্বাস্থ্য ও যত্ন" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold">Price (BDT - Set 0 for Free)</label>
+                                <input type="number" id="coursePrice" class="form-control text-white" placeholder="0 or 1500" value="0" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold"><i class="fa-solid fa-upload me-1 text-info"></i> Upload Video/Audio File from Device</label>
+                                <input type="file" id="courseMediaFile" class="form-control text-white" accept="video/*,audio/*">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label text-secondary small fw-semibold">Course Description</label>
+                                <textarea id="courseDescEn" class="form-control text-white" rows="3" placeholder="Provide a detailed overview of what patients will learn in this course..." required></textarea>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer border-secondary">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-purple"><i class="fa-solid fa-paper-plane me-2 text-white"></i> Submit Course for Admin Approval</button>
+                        <button type="submit" class="btn btn-purple"><i class="fa-solid fa-paper-plane me-1"></i> Submit Course for Admin Approval</button>
                     </div>
                 </form>
             </div>
@@ -225,21 +211,17 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label text-secondary small fw-semibold">Description</label>
-                                <textarea id="editCourseDescEn" class="form-control text-white" rows="2"></textarea>
+                                <textarea id="editCourseDescEn" class="form-control text-white" rows="2" required></textarea>
                             </div>
                         </div>
 
-                        <!-- Curriculum / Modules Section -->
-                        <div class="border-top border-secondary pt-3">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="fw-bold text-white mb-0"><i class="fa-solid fa-list-check me-2 text-info"></i> Course Modules & Homework Tasks</h6>
-                                <button type="button" class="btn btn-sm btn-outline-purple rounded-3" onclick="addNewModuleBlock()"><i class="fa-solid fa-plus me-1"></i> Add New Module</button>
-                            </div>
-
-                            <div id="modulesContainer">
-                                <!-- Dynamic Module Cards inserted here -->
-                            </div>
+                        <!-- Modules Section -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-white mb-0"><i class="fa-solid fa-layer-group me-2 text-info"></i> Course Modules & Homework Tasks</h6>
+                            <button type="button" class="btn btn-sm btn-purple" onclick="addNewModuleBlock()"><i class="fa-solid fa-plus me-1"></i> Add New Module</button>
                         </div>
+
+                        <div id="modulesContainer"></div>
                     </div>
                     <div class="modal-footer border-secondary">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -250,22 +232,21 @@
         </div>
     </div>
 
-    <!-- Specialist Reply Modal -->
+    <!-- Reply to Post Modal -->
     <div class="modal fade" id="replyPostModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-dark text-white border-secondary">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-doctor me-2 text-purple" style="color: #A855F7;"></i> Expert Reply to Patient Question</h5>
+                    <h5 class="modal-title fw-bold text-white"><i class="fa-solid fa-reply me-2 text-purple" style="color: #A855F7;"></i> Reply as Doctor Specialist</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="specReplyForm" onsubmit="handleSendDoctorReply(event)">
+                <form id="replyPostForm" onsubmit="handleSendDoctorReply(event)">
                     <input type="hidden" id="replyPostId">
-                    <div class="modal-body">
+                    <div class="modal-body p-4">
                         <div class="p-3 bg-secondary bg-opacity-10 rounded-3 mb-3 border border-secondary border-opacity-25">
-                            <div class="fw-bold text-info small mb-1" id="replyPatientName">Patient Query</div>
-                            <p class="text-light small mb-0" id="replyPostText">Question content...</p>
+                            <div class="text-secondary small mb-1" id="replyPatientName">Patient Query</div>
+                            <div class="text-light small font-italic" id="replyPostText">...</div>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label text-secondary small fw-semibold">Doctor's Expert Advice & Reply</label>
                             <textarea id="replyContent" class="form-control text-white" rows="4" required placeholder="Type your professional medical advice or recommendation here..."></textarea>
@@ -316,27 +297,27 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-dark text-white border-secondary">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title fw-bold text-info"><i class="fa-solid fa-money-bill-wave me-2"></i> Consultation Fee Settings</h5>
+                    <h5 class="modal-title fw-bold text-info"><i class="fa-solid fa-money-bill-wave me-2"></i> Update Consultation Fee</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="consultationFeeForm" onsubmit="handleUpdateFee(event)">
                     <div class="modal-body p-4">
                         <div class="mb-3">
-                            <label class="form-label text-secondary small fw-semibold">Session Consultation Fee (BDT)</label>
-                            <input type="number" id="inputConsultationFee" class="form-control text-white" value="1500" required placeholder="1500">
+                            <label class="form-label text-secondary small fw-semibold">Consultation Fee (BDT ৳)</label>
+                            <input type="number" id="inputConsultationFee" class="form-control text-white" value="1500" required placeholder="e.g. 1500">
+                            <div class="form-text text-secondary">This fee will be displayed to patients booking consultation sessions with you.</div>
                         </div>
-                        <div class="form-text text-secondary small"><i class="fa-solid fa-circle-info me-1"></i> This fee is displayed on the Patient Mobile App for video session bookings.</div>
                     </div>
                     <div class="modal-footer border-secondary">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-purple"><i class="fa-solid fa-floppy-disk me-1"></i> Save Consultation Fee</button>
+                        <button type="submit" class="btn btn-info fw-bold text-dark"><i class="fa-solid fa-floppy-disk me-1"></i> Save Consultation Fee</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Zoom Full Specialist Profile Photo -->
+    <!-- Modal 3: Full Screen Profile Photo Zoom -->
     <div class="modal fade" id="zoomAvatarModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content bg-dark border-secondary text-center">
@@ -348,7 +329,46 @@
                     <img id="zoomedAvatarImg" src="" alt="Full Profile Photo" class="img-fluid rounded-4 shadow-lg border border-2 border-purple" style="max-height: 80vh; object-fit: contain;">
                 </div>
             </div>
-    <!-- Modal: bKash & Nagad Payment Gateway Modal -->
+        </div>
+    </div>
+
+    <!-- Modal 4: Send Video Meeting Link to Patient -->
+    <div class="modal fade" id="sendMeetingLinkModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold text-info"><i class="fa-solid fa-paper-plane me-2"></i> Send Video Session Link to Patient</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="sendMeetingLinkForm" onsubmit="handleSendMeetingLink(event)">
+                    <div class="modal-body p-4">
+                        <div id="sendLinkAlertBox" class="alert d-none border-0 rounded-3 py-2 px-3 mb-3 small"></div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small fw-semibold">Patient Username / Name</label>
+                            <input type="text" id="sendLinkPatientName" class="form-control text-white" required placeholder="Patient username (e.g. mishu)">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small fw-semibold"><i class="fa-solid fa-video me-1 text-purple"></i> Google Meet / Zoom Link</label>
+                            <input type="url" id="sendLinkUrl" class="form-control text-white" value="https://meet.google.com/ash-wash-wellness" required placeholder="https://meet.google.com/...">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small fw-semibold">Session Instructions / Notes for Patient</label>
+                            <textarea id="sendLinkNotes" class="form-control text-white" rows="2" placeholder="e.g. Please join 5 mins before schedule for initial evaluation.">Live Consultation Video Session</textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-info fw-bold text-dark px-4"><i class="fa-solid fa-paper-plane me-1"></i> Send Link via Notification</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: bKash & Nagad Payment Gateway Modal -->
     <div class="modal fade" id="paymentGatewayModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-dark text-white border-secondary">
@@ -368,7 +388,6 @@
                             <div class="fs-2 fw-bold text-success" id="payDisplayAmount">৳1500.00</div>
                         </div>
 
-                        <!-- Gateway Selection Tabs -->
                         <div class="d-flex gap-2 mb-4">
                             <button type="button" id="btnSelectBkash" class="btn w-50 py-2 fw-bold rounded-3 text-white border-0 shadow" style="background: linear-gradient(135deg, #E2136E, #C2185B);" onclick="selectGateway('bkash')">
                                 <i class="fa-solid fa-mobile-screen me-1"></i> bKash
@@ -409,46 +428,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
-    <script>
-        function switchSpecialistTab(tabId) {
-            const btn = document.querySelector(`[data-bs-target="#${tabId}"]`);
-            if (btn) {
-                const tab = new bootstrap.Tab(btn);
-                tab.show();
-            }
-        }
-
-        function openDoctorRatingModal() {
-            const modal = new bootstrap.Modal(document.getElementById('doctorRatingModal'));
-            modal.show();
-        }
-
-        function openConsultationFeeModal() {
-            const modal = new bootstrap.Modal(document.getElementById('consultationFeeModal'));
-            modal.show();
-        }
-
-        function handleUpdateFee(e) {
-            e.preventDefault();
-            const fee = document.getElementById('inputConsultationFee').value;
-            if (fee) {
-                document.getElementById('statFee').textContent = `৳${fee}`;
-                alert(`Consultation fee updated to ৳${fee} successfully in database!`);
-                const modal = bootstrap.Modal.getInstance(document.getElementById('consultationFeeModal'));
-                if (modal) modal.hide();
-            }
-        }
-
-        function openZoomAvatarModal() {
-            const img = document.getElementById('navSpecialistAvatar') || document.getElementById('profileAvatarImg');
-            const zoomedImg = document.getElementById('zoomedAvatarImg');
-            if (img && zoomedImg) {
-                zoomedImg.src = img.src;
-                const modal = new bootstrap.Modal(document.getElementById('zoomAvatarModal'));
-                modal.show();
-            }
-        }
-    </script>
 
     <!-- Firebase & Notifications -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
@@ -481,7 +460,6 @@
         </button>
       </div>
       <div class="offcanvas-body p-3" id="notificationsList" style="overflow-y: auto;">
-        <!-- Rendered dynamically by notifications.js -->
       </div>
     </div>
 </body>

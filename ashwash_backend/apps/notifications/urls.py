@@ -13,4 +13,5 @@ urlpatterns = [
     path('delete-all/', views.DeleteAllNotificationsView.as_view(), name='notification-delete-all'),
     path('clear-all/', views.DeleteAllNotificationsView.as_view(), name='notification-clear-all-alias'),
     path('register-device/', views.RegisterFCMDeviceView.as_view(), name='register-fcm-device'),
+    path('send-meeting-link/', views.SendMeetingLinkView.as_view(), name='send-meeting-link'),
 ]

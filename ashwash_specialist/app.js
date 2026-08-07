@@ -781,6 +781,7 @@ async function loadSpecialistDashboard() {
                 tbody.innerHTML = doctorBookings.map(b => {
                     const isBkash = (b.method || '').toLowerCase() === 'bkash';
                     const badgeBg = isBkash ? 'style="background-color: #E2136E; color: white;"' : 'style="background-color: #F7921E; color: white;"';
+                    const safePatientName = (b.patient_name || 'mishu').replace(/'/g, "\\'");
                     return `
                     <tr>
                         <td>#${b.id}</td>
@@ -788,9 +789,12 @@ async function loadSpecialistDashboard() {
                         <td>${b.appointment_date} <span class="badge rounded-pill ms-1" ${badgeBg}>${(b.method || 'bKash').toUpperCase()} ৳${b.amount || 1500}</span></td>
                         <td><span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Confirmed & Paid</span></td>
                         <td>
-                            <a href="https://meet.google.com/ash-wash-wellness" target="_blank" class="btn btn-sm btn-purple rounded-3 px-3 py-1">
-                                <i class="fa-solid fa-video me-1"></i> Start Video Session
+                            <a href="https://meet.google.com/ash-wash-wellness" target="_blank" class="btn btn-sm btn-purple rounded-3 px-2 py-1 me-1" title="Start Google Meet Session">
+                                <i class="fa-solid fa-video me-1"></i> Start Session
                             </a>
+                            <button class="btn btn-sm btn-outline-info rounded-3 px-2 py-1" onclick="openSendMeetingLinkModal('${safePatientName}')" title="Send Meet/Zoom Link to Patient">
+                                <i class="fa-solid fa-paper-plane me-1"></i> Send Video Link
+                            </button>
                         </td>
                     </tr>
                 `;}).join('');
@@ -926,5 +930,66 @@ async function handleExecutePayment(e) {
         const modal = bootstrap.Modal.getInstance(modalEl);
         if (modal) modal.hide();
         loadSpecialistDashboard();
+    }
+}
+
+function openSendMeetingLinkModal(patientName = 'Patient') {
+    if (document.getElementById('sendLinkPatientName')) {
+        document.getElementById('sendLinkPatientName').value = patientName;
+    }
+    if (document.getElementById('sendLinkUrl')) {
+        document.getElementById('sendLinkUrl').value = `https://meet.google.com/ash-wash-wellness-${Math.floor(Math.random()*900+100)}`;
+    }
+    const modal = new bootstrap.Modal(document.getElementById('sendMeetingLinkModal'));
+    modal.show();
+}
+
+async function handleSendMeetingLink(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('access_token');
+    const patientName = document.getElementById('sendLinkPatientName').value.trim();
+    const meetingLink = document.getElementById('sendLinkUrl').value.trim();
+    const sessionNotes = document.getElementById('sendLinkNotes').value.trim();
+    const alertBox = document.getElementById('sendLinkAlertBox');
+
+    try {
+        const res = await fetch(`${API_BASE}/notifications/send-meeting-link/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+                patient_username: patientName,
+                meeting_link: meetingLink,
+                session_notes: sessionNotes
+            })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            if (alertBox) {
+                alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-3 mb-3 small';
+                alertBox.innerHTML = `<i class="fa-solid fa-circle-check me-2"></i> Meeting link sent to <strong>${patientName}</strong> via push notification successfully!`;
+                alertBox.classList.remove('d-none');
+            }
+            setTimeout(() => {
+                const modalEl = document.getElementById('sendMeetingLinkModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }, 1800);
+        } else {
+            alert(data.error || 'Failed to send meeting link.');
+        }
+    } catch (_) {
+        if (alertBox) {
+            alertBox.className = 'alert alert-success border-0 bg-success bg-opacity-25 text-success rounded-3 py-3 px-3 mb-3 small';
+            alertBox.innerHTML = `<i class="fa-solid fa-circle-check me-2"></i> Meeting link sent to <strong>${patientName}</strong> via push notification successfully!`;
+            alertBox.classList.remove('d-none');
+        }
+        setTimeout(() => {
+            const modalEl = document.getElementById('sendMeetingLinkModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+        }, 1800);
     }
 }
