@@ -2,6 +2,9 @@
 *.class
 *.log
 *.pyc
+*.pyo
+*.pyd
+__pycache__/
 *.swp
 .DS_Store
 .atom/
@@ -14,6 +17,14 @@ migrate_working_dir/
 *firebase_credentials*.json
 *service_account*.json
 *.env
+
+# Django / Python
+*.sqlite3
+db.sqlite3
+/ashwash_backend/staticfiles/
+venv/
+env/
+.venv/
 
 # IntelliJ related
 *.iml
@@ -34,6 +45,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+**/build/
 /coverage/
 
 # Symbolication related

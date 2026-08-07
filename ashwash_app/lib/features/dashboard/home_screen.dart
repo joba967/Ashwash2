@@ -358,19 +358,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                pctText,
-                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-              ),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text(pctText, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
             ],
           ),
           const SizedBox(height: 6),
