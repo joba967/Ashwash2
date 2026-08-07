@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
@@ -98,7 +99,6 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final specProvider = Provider.of<SpecialistProvider>(context);
 
-    // Combine Live Backend Specialists + Local Provider Profile + Mock Fallbacks
     final List<SpecialistModel> allSpecialists = [];
 
     if (_fetchedLiveSpecialists.isNotEmpty) {
@@ -107,7 +107,6 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
       allSpecialists.addAll(mock_api.ApiService().getMockSpecialists());
     }
 
-    // Ensure currently registered profile from SpecialistProvider is present
     final regSpec = specProvider.profile;
     if (regSpec.fullName.isNotEmpty) {
       final exists = allSpecialists.any((s) => s.name.toLowerCase().contains(regSpec.fullName.toLowerCase()));
@@ -136,7 +135,6 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
       }
     }
 
-    // Filter by search query & category tab
     final filteredSpecialists = allSpecialists.where((spec) {
       final q = _searchQuery.toLowerCase().trim();
       final matchesSearch = q.isEmpty ||
@@ -282,18 +280,10 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar Image / Fallback
+              // Avatar Image / Base64 / Fallback
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: spec.imageUrl.isNotEmpty && spec.imageUrl.startsWith('http')
-                    ? Image.network(
-                        spec.imageUrl,
-                        width: 64,
-                        height: 64,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildAvatarFallback(spec),
-                      )
-                    : _buildAvatarFallback(spec),
+                child: _buildDoctorAvatarImage(spec),
               ),
               const SizedBox(width: 14),
 
@@ -410,6 +400,32 @@ class _SpecialistListScreenState extends State<SpecialistListScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildDoctorAvatarImage(SpecialistModel spec) {
+    final imgUrl = spec.imageUrl;
+    if (imgUrl.contains('base64,')) {
+      try {
+        final base64Str = imgUrl.split('base64,').last.trim();
+        final bytes = base64Decode(base64Str);
+        return Image.memory(
+          bytes,
+          width: 64,
+          height: 64,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildAvatarFallback(spec),
+        );
+      } catch (_) {}
+    } else if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
+      return Image.network(
+        imgUrl,
+        width: 64,
+        height: 64,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildAvatarFallback(spec),
+      );
+    }
+    return _buildAvatarFallback(spec);
   }
 
   Widget _buildAvatarFallback(SpecialistModel spec) {

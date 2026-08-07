@@ -231,11 +231,14 @@ class AdminSpecialistsListAPIView(APIView):
                 doc_name = f"Dr. Specialist #{s.id}"
 
             pic_url = ''
-            if s.user and s.user.profile_picture:
-                try:
-                    pic_url = s.user.profile_picture.url if hasattr(s.user.profile_picture, 'url') else str(s.user.profile_picture)
-                except Exception:
-                    pic_url = str(s.user.profile_picture)
+            if s.user:
+                if s.user.preferences and s.user.preferences.get('profile_picture_base64'):
+                    pic_url = s.user.preferences.get('profile_picture_base64')
+                elif s.user.profile_picture:
+                    try:
+                        pic_url = request.build_absolute_uri(s.user.profile_picture.url)
+                    except Exception:
+                        pic_url = str(s.user.profile_picture)
             if not pic_url:
                 pic_url = 'https://corecdn.doctime.com.bd/persons/578875/profile_photos/Fe6ibomQLhBJuUQFq4cjQGkAnPeWDtUsO8AOMqIn.png'
 
