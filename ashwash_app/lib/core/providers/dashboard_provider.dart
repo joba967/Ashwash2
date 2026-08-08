@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../network/api_endpoints.dart';
 import '../network/api_service.dart';
 
@@ -42,7 +44,20 @@ class DashboardProvider with ChangeNotifier {
   ];
 
   DashboardProvider() {
+    _loadLocalEnrolledCourses();
     fetchDashboardData();
+  }
+
+  Future<void> _loadLocalEnrolledCourses() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedStr = prefs.getString('persisted_enrolled_courses_v2');
+      if (savedStr != null) {
+        final List<dynamic> decoded = jsonDecode(savedStr);
+        _enrolledCourses = List<Map<String, dynamic>>.from(decoded);
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   Future<void> fetchDashboardData() async {
@@ -63,26 +78,46 @@ class DashboardProvider with ChangeNotifier {
         _pointsEarned = data['metrics']['points_earned'] ?? 450;
       }
 
-      if (data['enrolled_courses'] != null) {
-        _enrolledCourses = List<Map<String, dynamic>>.from(data['enrolled_courses']);
+      if (data['enrolled_courses'] != null && (data['enrolled_courses'] as List).isNotEmpty) {
+        final fetched = List<Map<String, dynamic>>.from(data['enrolled_courses']);
+        for (var c in fetched) {
+          if (!_enrolledCourses.any((item) => item['id'] == c['id'] || item['title'] == c['title'])) {
+            _enrolledCourses.add(c);
+          }
+        }
       }
     } catch (e) {
       _errorMessage = e.toString();
-      // Fallback default values matching Figma prototype screenshots
-      _enrolledCourses = [
-        {
-          'id': 1,
-          'title': 'Postpartum Depression Recovery Program',
-          'description': 'Comprehensive 6-week guided recovery for new mothers covering symptoms, bonding, and coping.',
-          'completed_lessons': 2,
-          'total_lessons': 17,
-          'progress_percentage': 25,
-          'format': 'Both',
-        },
-      ];
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  bool isCourseEnrolled(dynamic courseId, String courseTitle) {
+    return _enrolledCourses.any((c) =>
+      c['id'].toString() == courseId.toString() ||
+      c['title'].toString().trim().toLowerCase() == courseTitle.trim().toLowerCase()
+    );
+  }
+
+  Future<void> enrollCourse(Map<String, dynamic> courseData) async {
+    final courseId = courseData['id'];
+    if (!isCourseEnrolled(courseId, courseData['title'] ?? '')) {
+      _enrolledCourses.insert(0, courseData);
+      notifyListeners();
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('persisted_enrolled_courses_v2', jsonEncode(_enrolledCourses));
+      } catch (_) {}
+
+      try {
+        await ApiService.post('/api/courses/enroll/', {
+          'course_id': courseId,
+          'course_title': courseData['title'],
+        }, requireAuth: true);
+      } catch (_) {}
     }
   }
 

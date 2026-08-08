@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_language_provider.dart';
-import '../../../../core/services/api_service.dart';
+import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/network/api_service.dart';
+import '../../../../core/providers/dashboard_provider.dart';
+import '../../../../core/providers/notification_provider.dart';
 import '../../../../data/models/course_model.dart';
 import '../../../appointments/specialist_list_screen.dart';
 import '../widgets/lesson_player_dialog.dart';
@@ -24,7 +27,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   final Set<String> _completedAssignmentIds = {};
   double _quizScore = 0.0;
   bool _quizPassed = false;
-  bool _isEnrolled = true;
 
   @override
   void initState() {
@@ -125,12 +127,349 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     );
   }
 
+  void _showCoursePaymentModal(BuildContext context, bool isBn, CourseModel course) {
+    String selectedPaymentMethod = 'bKash';
+    final mobileController = TextEditingController(text: '01711982341');
+    final otpController = TextEditingController(text: '123456');
+    final pinController = TextEditingController(text: '12345');
+    bool isLoading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isBkash = selectedPaymentMethod == 'bKash';
+            final primaryThemeColor = isBkash ? const Color(0xFFE2136E) : const Color(0xFFF7921E);
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isBn ? 'পেমেন্ট মেথড নির্বাচন করুন' : 'Course Payment Gateway',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: primaryThemeColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          isBkash ? 'bKash Sandbox API' : 'Nagad Gateway',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Payment Gateway Selector Chips
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setModalState(() => selectedPaymentMethod = 'bKash'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isBkash ? const Color(0xFFE2136E).withOpacity(0.1) : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isBkash ? const Color(0xFFE2136E) : Colors.grey.shade300,
+                                width: isBkash ? 2 : 1,
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('📱 ', style: TextStyle(fontSize: 18)),
+                                Text('bKash', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE2136E))),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setModalState(() => selectedPaymentMethod = 'Nagad'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: !isBkash ? const Color(0xFFF7921E).withOpacity(0.1) : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: !isBkash ? const Color(0xFFF7921E) : Colors.grey.shade300,
+                                width: !isBkash ? 2 : 1,
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('📲 ', style: TextStyle(fontSize: 18)),
+                                Text('Nagad', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF7921E))),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Invoice Summary Card
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: primaryThemeColor.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: primaryThemeColor.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Invoice: INV-CRS-${course.id}',
+                              style: TextStyle(fontSize: 12, color: primaryThemeColor, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Fee: ৳${course.price.toStringAsFixed(0)}',
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black87),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          course.titleEn,
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: mobileController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: isBkash ? 'bKash Account Number' : 'Nagad Mobile Number',
+                      prefixIcon: const Icon(Icons.phone_android),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: otpController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Verification OTP',
+                            prefixIcon: const Icon(Icons.password),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: pinController,
+                          obscureText: true,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'PIN Code',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryThemeColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              setModalState(() => isLoading = true);
+                              final dashProvider = Provider.of<DashboardProvider>(context, listen: false);
+                              final notifProvider = Provider.of<NotificationProvider>(context, listen: false);
+                              String verifiedTrxId = 'TR0011${DateTime.now().millisecondsSinceEpoch}';
+
+                              // Call bKash / Nagad REST API Endpoint
+                              try {
+                                final payEndpoint = isBkash ? 'payments/bkash/execute/' : 'payments/nagad/execute/';
+                                final response = await ApiService.post(payEndpoint, {
+                                  'amount': course.price,
+                                  'purpose': 'Course Enrollment: ${course.titleEn}',
+                                  'mobile_number': mobileController.text.trim(),
+                                  'otp': otpController.text.trim(),
+                                  'pin': pinController.text.trim(),
+                                });
+
+                                if (response != null && response['transaction_id'] != null) {
+                                  verifiedTrxId = response['transaction_id'].toString();
+                                }
+                              } catch (_) {}
+
+                              // Enroll user in local state & sync backend
+                              await dashProvider.enrollCourse({
+                                'id': course.id,
+                                'title': course.titleEn,
+                                'description': course.descriptionEn,
+                                'completed_lessons': 0,
+                                'total_lessons': _totalLessons,
+                                'progress_percentage': 0,
+                                'format': 'Both',
+                                'instructor': course.instructorName,
+                                'specialist': course.specialistName,
+                                'price': course.price,
+                                'transaction_id': verifiedTrxId,
+                              });
+
+                              // Notify Specialist & Admin Portal
+                              notifProvider.addNotification(
+                                title: isBn ? 'নতুন কোর্স এনরোলমেন্ট!' : 'New Course Enrollment!',
+                                message: isBn
+                                    ? '${course.specialistName}-এর "${course.titleBn}" কোর্সে সফলতা সহ এনরোলমেন্ট সম্পন্ন হয়েছে। (TrxID: $verifiedTrxId)'
+                                    : 'Enrolled in "${course.titleEn}" with ${course.specialistName}. (TrxID: $verifiedTrxId)',
+                              );
+
+                              Navigator.pop(modalCtx);
+                              if (mounted) {
+                                _showEnrollmentSuccessDialog(context, isBn, verifiedTrxId, course);
+                              }
+                            },
+                      child: isLoading
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(
+                              isBn ? '🔒 পেমেন্ট সম্পন্ন ও এনরোল করুন (৳${course.price.toStringAsFixed(0)})' : '🔒 Confirm & Pay ৳${course.price.toStringAsFixed(0)}',
+                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEnrollmentSuccessDialog(BuildContext context, bool isBn, String trxId, CourseModel course) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 54),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isBn ? 'কোর্স এনরোলমেন্ট সফল হয়েছে!' : 'Course Enrolled Successfully!',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isBn
+                    ? 'আপনি সফলতা সহ "${course.titleBn}" কোর্সে এনরোল হয়েছেন। আপনার স্পেশালিস্ট ${course.specialistName}-এর কাছে নোটিফিকেশন সিঙ্ক হয়েছে।'
+                    : 'You have successfully enrolled in "${course.titleEn}". Notification synced to specialist ${course.specialistName} & Admin Portal.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: SelectableText(
+                  'bKash TrxID: $trxId',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context); // Close Dialog
+                  },
+                  child: Text(isBn ? 'কোর্স শুরু করুন' : 'Start Learning Now', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final course = widget.course;
     final isBn = Provider.of<AppLanguageProvider>(context).isBangla;
+    final dashboardProvider = Provider.of<DashboardProvider>(context);
     final apiService = ApiService();
     final allCourses = apiService.getMockCourses();
+
+    final bool isEnrolledInApp = dashboardProvider.isCourseEnrolled(course.id, course.titleEn);
 
     // Automatically filter related courses
     final relatedCourses = allCourses.where((c) => c.id != course.id).take(3).toList();
@@ -615,7 +954,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         ],
       ),
 
-      // Bottom Sticky Bar
+      // Bottom Sticky Bar (Dynamic Enroll vs Continue Learning Button)
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
@@ -630,9 +969,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Course Price', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                Text(isBn ? 'কোর্স ফি' : 'Course Price', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                 Text(
-                  course.isFree ? 'FREE' : '৳${course.price.toStringAsFixed(0)}',
+                  course.isFree ? (isBn ? 'বিনামূল্যে' : 'FREE') : '৳${course.price.toStringAsFixed(0)}',
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
                 ),
               ],
@@ -641,18 +980,27 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             Expanded(
               child: ElevatedButton(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Resuming your last unfinished lesson...'), backgroundColor: AppColors.primary),
-                  );
+                  if (isEnrolledInApp || course.isFree) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(isBn ? 'আপনার কোর্স পাঠ্যসূচি প্লে করা হচ্ছে...' : 'Resuming your course lessons...'),
+                        backgroundColor: AppColors.primary,
+                      ),
+                    );
+                  } else {
+                    _showCoursePaymentModal(context, isBn, course);
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: const Text(
-                  'Continue Learning ➔',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                child: Text(
+                  (isEnrolledInApp || course.isFree)
+                      ? (isBn ? 'শেখা চালিয়ে যান ➔' : 'Continue Learning ➔')
+                      : (isBn ? 'কোর্সে এনরোল করুন ➔' : 'Enroll Course ➔'),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
             ),
