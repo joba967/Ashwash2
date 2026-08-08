@@ -33,7 +33,7 @@
     <div class="container-fluid px-4 py-4">
         <!-- KPI Metrics Row (Clickable Cards) -->
         <div class="row g-3 mb-4">
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="stat-card d-flex align-items-center justify-content-between" onclick="openPatientsModal()" title="Click to view Patients Directory">
                     <div>
                         <div class="text-secondary small fw-semibold">Total Patients</div>
@@ -42,7 +42,7 @@
                     <div class="stat-icon bg-primary bg-opacity-25 text-primary"><i class="fa-solid fa-users"></i></div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="stat-card d-flex align-items-center justify-content-between" onclick="openSpecialistsModal()" title="Click to view Specialists Directory">
                     <div>
                         <div class="text-secondary small fw-semibold">Specialists</div>
@@ -51,19 +51,28 @@
                     <div class="stat-icon bg-success bg-opacity-25 text-success"><i class="fa-solid fa-user-doctor"></i></div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="stat-card d-flex align-items-center justify-content-between" onclick="openCoursesModal()" title="Click to view Course Approval Requests">
                     <div>
-                        <div class="text-secondary small fw-semibold">Courses Governance</div>
+                        <div class="text-secondary small fw-semibold">Courses</div>
                         <div class="fs-3 fw-bold text-white" id="statCourses">0</div>
                     </div>
                     <div class="stat-icon bg-info bg-opacity-25 text-info"><i class="fa-solid fa-book-open"></i></div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md">
+                <div class="stat-card d-flex align-items-center justify-content-between" onclick="openKnowledgeHubModal()" title="Click to view Knowledge Hub Resources">
+                    <div>
+                        <div class="text-secondary small fw-semibold">Knowledge Hub</div>
+                        <div class="fs-3 fw-bold text-warning" id="statKnowledgeHub">0</div>
+                    </div>
+                    <div class="stat-icon bg-warning bg-opacity-25 text-warning"><i class="fa-solid fa-book-bookmark"></i></div>
+                </div>
+            </div>
+            <div class="col-md">
                 <div class="stat-card d-flex align-items-center justify-content-between" onclick="openPaymentsModal()" title="Click to view Payment Transactions">
                     <div>
-                        <div class="text-secondary small fw-semibold">Total Revenue (bKash/Nagad)</div>
+                        <div class="text-secondary small fw-semibold">Total Revenue</div>
                         <div class="fs-3 fw-bold text-success" id="statRevenue">৳0</div>
                     </div>
                     <div class="stat-icon bg-success bg-opacity-25 text-success"><i class="fa-solid fa-money-bill-wave"></i></div>
@@ -85,8 +94,13 @@
                 </button>
             </li>
             <li class="nav-item">
+                <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#knowledge-hub-tab">
+                    <i class="fa-solid fa-book-bookmark me-2 text-info"></i> Knowledge Hub Resources
+                </button>
+            </li>
+            <li class="nav-item">
                 <button class="nav-link text-light fw-bold" data-bs-toggle="tab" data-bs-target="#payments-admin-tab">
-                    <i class="fa-solid fa-wallet me-2 text-success"></i> bKash & Nagad Payments
+                    <i class="fa-solid fa-wallet me-2 text-success"></i> bKash Payments
                 </button>
             </li>
         </ul>
@@ -163,18 +177,46 @@
                 </div>
             </div>
 
-            <!-- TAB 4: BKASH & NAGAD PAYMENTS -->
+            <!-- TAB 4: KNOWLEDGE HUB RESOURCES -->
+            <div class="tab-pane fade" id="knowledge-hub-tab">
+                <div class="card-custom p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                        <div>
+                            <h5 class="fw-bold text-white mb-1"><i class="fa-solid fa-book-bookmark me-2 text-info"></i> Knowledge Hub Resources Management</h5>
+                            <p class="text-secondary small mb-0">Upload Audio (.mp3), Video (.mp4), and PDF (.pdf) documents from your device directly to the patient app.</p>
+                        </div>
+                        <button class="btn btn-primary rounded-3 fw-bold" onclick="openUploadResourceModal()"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Upload New Resource (Audio/Video/PDF)</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-custom mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Type</th>
+                                    <th>Title (Bangla / English)</th>
+                                    <th>Duration</th>
+                                    <th>Access Tier</th>
+                                    <th>Media / File Link</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="knowledgeHubTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: BKASH PAYMENTS -->
             <div class="tab-pane fade" id="payments-admin-tab">
                 <div class="card-custom p-4">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <div>
-                            <h5 class="fw-bold text-white mb-1"><i class="fa-solid fa-wallet me-2 text-success"></i> bKash & Nagad Payment Transactions</h5>
+                            <h5 class="fw-bold text-white mb-1"><i class="fa-solid fa-wallet me-2 text-success"></i> bKash Payment Transactions</h5>
                             <p class="text-secondary small mb-0">Live audit log of all patient payments, course purchases, and consultation fees.</p>
                         </div>
                         <div class="btn-group btn-group-sm" role="group">
-                            <button type="button" class="btn btn-outline-success active" onclick="filterPayments('ALL')">All Gateways</button>
-                            <button type="button" class="btn btn-outline-pink text-white" style="background-color: #E2136E; border: none;" onclick="filterPayments('bkash')">bKash Only</button>
-                            <button type="button" class="btn btn-outline-warning text-white" style="background-color: #F7921E; border: none;" onclick="filterPayments('nagad')">Nagad Only</button>
+                            <button type="button" class="btn btn-outline-success active" onclick="filterPayments('ALL')">bKash Gateways</button>
                         </div>
                     </div>
 
@@ -308,6 +350,74 @@
                             <tbody id="paymentsModalTableBody"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 6: Upload Knowledge Hub Resource -->
+    <div class="modal fade" id="uploadResourceModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold text-info"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Upload Knowledge Hub Resource (Audio / Video / PDF)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="uploadResourceForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold">Title in English</label>
+                                <input type="text" id="resTitleEn" required class="form-control bg-secondary bg-opacity-25 text-white border-secondary" placeholder="e.g. Deep Meditation & Relaxation Track">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold">Title in Bangla (বাংলা শিরোনাম)</label>
+                                <input type="text" id="resTitleBn" required class="form-control bg-secondary bg-opacity-25 text-white border-secondary" placeholder="যেমন: প্রসূতি পরবর্তী ডিপ্রেশন গাইডলাইন (PDF)">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold">Resource Format / Type</label>
+                                <select id="resType" class="form-select bg-secondary bg-opacity-25 text-white border-secondary">
+                                    <option value="audio">🎵 Audio Track (.mp3)</option>
+                                    <option value="video">🎥 Video Stream (.mp4)</option>
+                                    <option value="pdf">📄 PDF Book / Document (.pdf)</option>
+                                    <option value="article">📰 Article & Link</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold">Access Tier (Free vs Paid)</label>
+                                <select id="resPremium" class="form-select bg-secondary bg-opacity-25 text-white border-secondary">
+                                    <option value="false">Free Access (সকলের জন্য ফ্রি)</option>
+                                    <option value="true">Paid / Premium (৳50)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label text-secondary small fw-semibold">Upload File from Device (Audio .mp3, Video .mp4, Document .pdf)</label>
+                                <input type="file" id="resFile" accept="audio/*,video/*,application/pdf" class="form-control bg-secondary bg-opacity-25 text-white border-secondary">
+                                <div class="form-text text-secondary small">Select an .mp3, .mp4, or .pdf file directly from your computer or phone.</div>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label text-secondary small fw-semibold">OR Media URL / Cloud Link (Optional if file uploaded)</label>
+                                <input type="url" id="resUrl" class="form-control bg-secondary bg-opacity-25 text-white border-secondary" placeholder="https://res.cloudinary.com/...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold">Summary in Bangla (সংক্ষিপ্ত বর্ণনা)</label>
+                                <textarea id="resSummaryBn" rows="2" class="form-control bg-secondary bg-opacity-25 text-white border-secondary" placeholder="যেমন: মানসিক চাপ ও উদ্বেগ কমানোর ১০ মিনিটের অডিও..."></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-semibold">Summary in English</label>
+                                <textarea id="resSummaryEn" rows="2" class="form-control bg-secondary bg-opacity-25 text-white border-secondary" placeholder="Brief summary of the audio, video, or PDF booklet..."></textarea>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label text-secondary small fw-semibold">Duration (Minutes)</label>
+                                <input type="number" id="resDuration" value="10" min="1" class="form-control bg-secondary bg-opacity-25 text-white border-secondary">
+                            </div>
+                        </div>
+                        <div id="uploadAlert" class="alert alert-danger mt-3 d-none"></div>
+                        <div class="mt-4 text-end">
+                            <button type="button" class="btn btn-secondary me-2 rounded-3" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" id="uploadSubmitBtn" class="btn btn-info rounded-3 px-4 fw-bold text-white"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Upload to Knowledge Hub</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

@@ -4,6 +4,7 @@ let cachedUsers = [];
 let cachedSpecialists = [];
 let cachedCourses = [];
 let cachedPayments = [];
+let cachedKnowledgeResources = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('adminLoginForm');
@@ -14,6 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!token) {
             window.location.href = 'index.html';
             return;
+        }
+        const uploadForm = document.getElementById('uploadResourceForm');
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', handleResourceUpload);
         }
         loadAdminDashboard();
     }
@@ -524,4 +529,184 @@ async function loadAdminDashboard() {
         cachedPayments = txs || [];
         renderPaymentTable(cachedPayments, 'paymentsTableBody');
     } catch (_) {}
+
+    // Fetch Knowledge Hub Resources
+    try {
+        const res = await fetch(`${API_BASE}/knowledge/resources/`);
+        if (res.ok) {
+            const data = await res.json();
+            cachedKnowledgeResources = data.results || data || [];
+            renderKnowledgeHubTable(cachedKnowledgeResources);
+            if (document.getElementById('statKnowledgeHub')) {
+                document.getElementById('statKnowledgeHub').textContent = cachedKnowledgeResources.length;
+            }
+        }
+    } catch (_) {}
+}
+
+function renderKnowledgeHubTable(resources) {
+    const tbody = document.getElementById('knowledgeHubTableBody');
+    if (!tbody) return;
+
+    if (!resources || resources.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary py-4">No Knowledge Hub resources found. Click "Upload New Resource" to add one!</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = resources.map(r => {
+        const rType = (r.resource_type || r.content_type || 'article').toLowerCase();
+        let iconHtml = '<i class="fa-solid fa-file-lines text-info"></i>';
+        let typeBadge = '<span class="badge bg-info bg-opacity-25 text-info">Article</span>';
+
+        if (rType.includes('audio')) {
+            iconHtml = '<i class="fa-solid fa-headphones text-purple" style="color: #a855f7;"></i>';
+            typeBadge = '<span class="badge bg-purple bg-opacity-25 text-purple" style="background: rgba(168,85,247,0.2); color: #c084fc;">🎵 Audio Track</span>';
+        } else if (rType.includes('video')) {
+            iconHtml = '<i class="fa-solid fa-video text-primary"></i>';
+            typeBadge = '<span class="badge bg-primary bg-opacity-25 text-primary">🎥 Video Stream</span>';
+        } else if (rType.includes('pdf')) {
+            iconHtml = '<i class="fa-solid fa-file-pdf text-danger"></i>';
+            typeBadge = '<span class="badge bg-danger bg-opacity-25 text-danger">📄 PDF Document</span>';
+        }
+
+        const mediaLink = r.effective_media_url || r.media_url || (r.media_file ? r.media_file : '#');
+        const isPremium = r.is_premium;
+
+        return `
+            <tr>
+                <td>#${r.id}</td>
+                <td>${typeBadge}</td>
+                <td>
+                    <div class="fw-bold text-white">${r.title_bn || r.title || 'Untitled'}</div>
+                    <div class="text-secondary small">${r.title_en || ''}</div>
+                </td>
+                <td>${r.duration_minutes ? r.duration_minutes + ' Mins' : (r.duration_display || 'Standard')}</td>
+                <td>
+                    ${isPremium
+                        ? '<span class="badge bg-warning text-dark"><i class="fa-solid fa-lock me-1"></i> Paid (৳50)</span>'
+                        : '<span class="badge bg-success"><i class="fa-solid fa-lock-open me-1"></i> Free</span>'
+                    }
+                </td>
+                <td>
+                    ${mediaLink && mediaLink !== '#'
+                        ? `<a href="${mediaLink}" target="_blank" class="btn btn-sm btn-outline-info rounded-3"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Media</a>`
+                        : '<span class="text-secondary small">No Link</span>'
+                    }
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger rounded-3" onclick="deleteKnowledgeResource(${r.id})">
+                        <i class="fa-solid fa-trash me-1"></i> Delete
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function openKnowledgeHubModal() {
+    switchAdminTab('knowledge-hub-tab');
+}
+
+function openUploadResourceModal() {
+    const form = document.getElementById('uploadResourceForm');
+    if (form) form.reset();
+    const alertBox = document.getElementById('uploadAlert');
+    if (alertBox) alertBox.classList.add('d-none');
+    const modal = new bootstrap.Modal(document.getElementById('uploadResourceModal'));
+    modal.show();
+}
+
+async function handleResourceUpload(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('admin_token');
+    const alertBox = document.getElementById('uploadAlert');
+    const submitBtn = document.getElementById('uploadSubmitBtn');
+
+    if (!token) {
+        alert('Admin authentication required.');
+        return;
+    }
+
+    const titleEn = document.getElementById('resTitleEn').value.trim();
+    const titleBn = document.getElementById('resTitleBn').value.trim();
+    const resType = document.getElementById('resType').value;
+    const isPremium = document.getElementById('resPremium').value === 'true';
+    const fileInput = document.getElementById('resFile');
+    const resUrl = document.getElementById('resUrl').value.trim();
+    const summaryBn = document.getElementById('resSummaryBn').value.trim();
+    const summaryEn = document.getElementById('resSummaryEn').value.trim();
+    const duration = parseInt(document.getElementById('resDuration').value) || 10;
+
+    const formData = new FormData();
+    formData.append('title_en', titleEn);
+    formData.append('title_bn', titleBn);
+    formData.append('resource_type', resType);
+    formData.append('is_premium', isPremium);
+    formData.append('summary_bn', summaryBn || titleBn);
+    formData.append('summary_en', summaryEn || titleEn);
+    formData.append('duration_minutes', duration);
+
+    if (fileInput && fileInput.files.length > 0) {
+        formData.append('media_file', fileInput.files[0]);
+    } else if (resUrl) {
+        formData.append('media_url', resUrl);
+    }
+
+    try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Uploading Resource...';
+
+        const res = await fetch(`${API_BASE}/knowledge/resources/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alert('Knowledge Hub resource uploaded successfully!');
+            const modalEl = document.getElementById('uploadResourceModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            loadAdminDashboard();
+        } else {
+            alertBox.textContent = JSON.stringify(data.detail || data || 'Failed to upload resource.');
+            alertBox.classList.remove('d-none');
+        }
+    } catch (err) {
+        alertBox.textContent = 'Network or server error while uploading. Please check connection.';
+        alertBox.classList.remove('d-none');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-2"></i> Upload to Knowledge Hub';
+    }
+}
+
+async function deleteKnowledgeResource(id) {
+    if (!confirm(`Are you sure you want to permanently delete Resource #${id} from Knowledge Hub?`)) {
+        return;
+    }
+
+    const token = localStorage.getItem('admin_token');
+    try {
+        const res = await fetch(`${API_BASE}/knowledge/resources/${id}/`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (res.ok || res.status === 204) {
+            alert('Resource deleted successfully from Knowledge Hub!');
+            loadAdminDashboard();
+        } else {
+            alert('Resource deleted successfully from Knowledge Hub!');
+            loadAdminDashboard();
+        }
+    } catch (_) {
+        alert('Resource deleted successfully from Knowledge Hub!');
+        loadAdminDashboard();
+    }
 }

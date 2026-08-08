@@ -43,7 +43,27 @@ class KnowledgeHubProvider with ChangeNotifier {
       final data = await ApiService.get('${ApiEndpoints.hubResources}$filterParam', requireAuth: true);
       final rawList = List<Map<String, dynamic>>.from(data['results'] ?? data);
       if (rawList.isNotEmpty) {
-        _resources = rawList;
+        final formattedBackendItems = rawList.map((item) {
+          final resType = (item['resource_type'] ?? item['content_type'] ?? 'ARTICLE').toString().toUpperCase();
+          final mediaUrl = item['effective_media_url'] ?? item['media_url'] ?? item['media_file'] ?? '';
+          return {
+            'id': item['id'],
+            'title': item['title_en'] ?? item['title'] ?? 'Knowledge Resource',
+            'title_bn': item['title_bn'] ?? item['title_en'] ?? 'নলেজ রিসোর্স',
+            'description': item['summary_bn'] ?? item['summary_en'] ?? item['description'] ?? '',
+            'content_type': resType,
+            'content_type_display': resType == 'AUDIO' ? 'Audio' : (resType == 'VIDEO' ? 'Video' : (resType == 'PDF' ? 'PDF Book' : 'Article')),
+            'media_url': mediaUrl,
+            'duration_display': item['duration_minutes'] != null ? '${item['duration_minutes']} min' : (item['duration_display'] ?? '10 min'),
+            'is_premium': item['is_premium'] ?? false,
+            'price': (item['is_premium'] ?? false) ? r'৳50' : 'Free',
+            'content_text': item['content_bn'] ?? item['content_en'] ?? '',
+          };
+        }).toList();
+        
+        final prodItems = _getProductionResources();
+        // Place Admin uploaded items first
+        _resources = [...formattedBackendItems, ...prodItems];
       } else {
         _resources = _getProductionResources();
       }
