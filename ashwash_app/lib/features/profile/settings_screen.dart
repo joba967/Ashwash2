@@ -1,9 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/localization/app_language_provider.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/network/api_service.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,25 +20,49 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushNotifications = true;
 
-  Future<void> _showChangePasswordSheet(BuildContext context, bool isBn) async {
+  Future<void> _showManageAccountSheet(BuildContext context, bool isBn) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.currentUser;
+
+    final usernameCtrl = TextEditingController(text: user?.username ?? '');
     final oldPasswordCtrl = TextEditingController();
     final newPasswordCtrl = TextEditingController();
     final confirmPasswordCtrl = TextEditingController();
+
     bool obscureOld = true;
     bool obscureNew = true;
     bool obscureConfirm = true;
-    bool isLoading = false;
-    String? errorMessage;
+    bool isSavingProfile = false;
+    bool isChangingPassword = false;
+    String? profileError;
+    String? passwordError;
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final currentUser = authProvider.currentUser;
+            final avatarStr = currentUser?.avatar;
+
+            ImageProvider? avatarImage;
+            if (avatarStr != null && avatarStr.isNotEmpty) {
+              if (avatarStr.startsWith('data:image') || avatarStr.length > 200) {
+                try {
+                  final cleanBase64 = avatarStr.contains(',') ? avatarStr.split(',').last : avatarStr;
+                  avatarImage = MemoryImage(base64Decode(cleanBase64));
+                } catch (_) {}
+              } else if (avatarStr.startsWith('http')) {
+                avatarImage = NetworkImage(avatarStr);
+              }
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 24,
@@ -42,152 +70,346 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 top: 20,
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade400,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Icon(Icons.lock_outline_rounded, color: AppColors.primary, size: 28),
-                      const SizedBox(width: 12),
-                      Text(
-                        isBn ? 'পাসওয়ার্ড পরিবর্তন করুন' : 'Change Password',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Icon(Icons.manage_accounts_outlined, color: AppColors.primary, size: 28),
+                        const SizedBox(width: 12),
+                        Text(
+                          isBn ? 'অ্যাকাউন্ট পরিচালনা (Manage Account)' : 'Manage Account',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+
+                    // SECTION 1: PROFILE PICTURE SELECTION (FROM DEVICE GALLERY)
+                    Center(
+                      child: Column(
+                        children: [
+                          Stack(
+                            children: [
+                              Container(
+                                width: 96,
+                                height: 96,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AppColors.primary, width: 3),
+                                  color: AppColors.primary.withOpacity(0.1),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 46,
+                                  backgroundColor: Colors.transparent,
+                                  backgroundImage: avatarImage,
+                                  child: avatarImage == null
+                                      ? Text(
+                                          (currentUser?.username.isNotEmpty == true ? currentUser!.username[0].toUpperCase() : 'U'),
+                                          style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: InkWell(
+                                  onTap: () async {
+                                    final result = await FilePicker.platform.pickFiles(
+                                      type: FileType.image,
+                                      allowMultiple: false,
+                                      withData: true,
+                                    );
+
+                                    if (result != null && result.files.isNotEmpty) {
+                                      final pickedFile = result.files.first;
+                                      List<int>? bytes = pickedFile.bytes;
+
+                                      if (bytes == null && pickedFile.path != null) {
+                                        bytes = await File(pickedFile.path!).readAsBytes();
+                                      }
+
+                                      if (bytes != null) {
+                                        final base64String = 'data:image/png;base64,${base64Encode(bytes)}';
+                                        setSheetState(() => isSavingProfile = true);
+                                        final ok = await authProvider.updateProfile(profilePicBase64: base64String);
+                                        setSheetState(() => isSavingProfile = false);
+
+                                        if (ok && context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(isBn ? 'প্রোফাইল ছবি আপডেট হয়েছে!' : 'Profile picture updated!'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: () async {
+                              final result = await FilePicker.platform.pickFiles(
+                                type: FileType.image,
+                                allowMultiple: false,
+                                withData: true,
+                              );
+
+                              if (result != null && result.files.isNotEmpty) {
+                                final pickedFile = result.files.first;
+                                List<int>? bytes = pickedFile.bytes;
+
+                                if (bytes == null && pickedFile.path != null) {
+                                  bytes = await File(pickedFile.path!).readAsBytes();
+                                }
+
+                                if (bytes != null) {
+                                  final base64String = 'data:image/png;base64,${base64Encode(bytes)}';
+                                  setSheetState(() => isSavingProfile = true);
+                                  final ok = await authProvider.updateProfile(profilePicBase64: base64String);
+                                  setSheetState(() => isSavingProfile = false);
+
+                                  if (ok && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(isBn ? 'গ্যালারি থেকে প্রোফাইল ছবি আপডেট হয়েছে!' : 'Profile picture updated from device!'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                            icon: const Icon(Icons.photo_library_outlined, size: 18),
+                            label: Text(
+                              isBn ? 'ডিভাইস গ্যালারি থেকে ছবি আপলোড করুন' : 'Add/Change Photo from Device',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // SECTION 2: CHANGE USERNAME
+                    Text(
+                      isBn ? 'ইউজারনেম পরিবর্তন করুন' : 'Change Username',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? Colors.white : Colors.black87),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: usernameCtrl,
+                            decoration: InputDecoration(
+                              labelText: isBn ? 'নতুন ইউজারনেম' : 'New Username',
+                              prefixIcon: const Icon(Icons.person_outline_rounded),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: isSavingProfile
+                              ? null
+                              : () async {
+                                  final newName = usernameCtrl.text.trim();
+                                  if (newName.isEmpty) return;
+
+                                  setSheetState(() {
+                                    isSavingProfile = true;
+                                    profileError = null;
+                                  });
+
+                                  final ok = await authProvider.updateProfile(username: newName);
+                                  setSheetState(() => isSavingProfile = false);
+
+                                  if (ok && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(isBn ? 'ইউজারনেম সফলভাবে পরিবর্তন হয়েছে!' : 'Username updated successfully!'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  } else {
+                                    setSheetState(() => profileError = authProvider.errorMessage);
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: isSavingProfile
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : Text(isBn ? 'সেভ' : 'Save', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    if (profileError != null) ...[
+                      const SizedBox(height: 6),
+                      Text(profileError!, style: const TextStyle(color: AppColors.emergency, fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  if (errorMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.emergency.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
+                    const SizedBox(height: 24),
+                    const Divider(),
+
+                    // SECTION 3: CHANGE PASSWORD
+                    Text(
+                      isBn ? 'পাসওয়ার্ড পরিবর্তন করুন' : 'Change Password',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? Colors.white : Colors.black87),
+                    ),
+                    const SizedBox(height: 12),
+                    if (passwordError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.emergency.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          passwordError!,
+                          style: const TextStyle(color: AppColors.emergency, fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
                       ),
-                      child: Text(
-                        errorMessage!,
-                        style: const TextStyle(color: AppColors.emergency, fontSize: 13, fontWeight: FontWeight.w600),
+                      const SizedBox(height: 12),
+                    ],
+                    TextField(
+                      controller: oldPasswordCtrl,
+                      obscureText: obscureOld,
+                      decoration: InputDecoration(
+                        labelText: isBn ? 'বর্তমান পাসওয়ার্ড' : 'Current Password',
+                        prefixIcon: const Icon(Icons.lock_clock_outlined),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureOld ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                          onPressed: () => setSheetState(() => obscureOld = !obscureOld),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                  ],
-                  TextField(
-                    controller: oldPasswordCtrl,
-                    obscureText: obscureOld,
-                    decoration: InputDecoration(
-                      labelText: isBn ? 'বর্তমান পাসওয়ার্ড' : 'Current Password',
-                      prefixIcon: const Icon(Icons.lock_clock_outlined),
-                      suffixIcon: IconButton(
-                        icon: Icon(obscureOld ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                        onPressed: () => setSheetState(() => obscureOld = !obscureOld),
+                    TextField(
+                      controller: newPasswordCtrl,
+                      obscureText: obscureNew,
+                      decoration: InputDecoration(
+                        labelText: isBn ? 'নতুন পাসওয়ার্ড' : 'New Password',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureNew ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                          onPressed: () => setSheetState(() => obscureNew = !obscureNew),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: newPasswordCtrl,
-                    obscureText: obscureNew,
-                    decoration: InputDecoration(
-                      labelText: isBn ? 'নতুন পাসওয়ার্ড' : 'New Password',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(obscureNew ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                        onPressed: () => setSheetState(() => obscureNew = !obscureNew),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirmPasswordCtrl,
+                      obscureText: obscureConfirm,
+                      decoration: InputDecoration(
+                        labelText: isBn ? 'নতুন পাসওয়ার্ড নিশ্চিত করুন' : 'Confirm New Password',
+                        prefixIcon: const Icon(Icons.check_circle_outline_rounded),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                          onPressed: () => setSheetState(() => obscureConfirm = !obscureConfirm),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: confirmPasswordCtrl,
-                    obscureText: obscureConfirm,
-                    decoration: InputDecoration(
-                      labelText: isBn ? 'নতুন পাসওয়ার্ড নিশ্চিত করুন' : 'Confirm New Password',
-                      prefixIcon: const Icon(Icons.check_circle_outline_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                        onPressed: () => setSheetState(() => obscureConfirm = !obscureConfirm),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: isLoading
-                        ? null
-                        : () async {
-                            final oldPass = oldPasswordCtrl.text.trim();
-                            final newPass = newPasswordCtrl.text.trim();
-                            final confirmPass = confirmPasswordCtrl.text.trim();
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: isChangingPassword
+                          ? null
+                          : () async {
+                              final oldPass = oldPasswordCtrl.text.trim();
+                              final newPass = newPasswordCtrl.text.trim();
+                              final confirmPass = confirmPasswordCtrl.text.trim();
 
-                            if (oldPass.isEmpty || newPass.isEmpty) {
-                              setSheetState(() => errorMessage = isBn ? 'সকল ঘর পুরন করুন' : 'Please fill all fields');
-                              return;
-                            }
-                            if (newPass.length < 6) {
-                              setSheetState(() => errorMessage = isBn ? 'কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দিন' : 'Password must be at least 6 characters');
-                              return;
-                            }
-                            if (newPass != confirmPass) {
-                              setSheetState(() => errorMessage = isBn ? 'নতুন পাসওয়ার্ড দুটি মিলছে না' : 'New passwords do not match');
-                              return;
-                            }
-
-                            setSheetState(() {
-                              isLoading = true;
-                              errorMessage = null;
-                            });
-
-                            try {
-                              final response = await ApiService.post(
-                                ApiEndpoints.changePassword,
-                                {
-                                  'old_password': oldPass,
-                                  'new_password': newPass,
-                                  'confirm_password': confirmPass,
-                                },
-                                requireAuth: true,
-                              );
-
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(response['detail'] ?? (isBn ? 'পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে!' : 'Password updated successfully!')),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
+                              if (oldPass.isEmpty || newPass.isEmpty) {
+                                setSheetState(() => passwordError = isBn ? 'সকল ঘর পুরন করুন' : 'Please fill all fields');
+                                return;
                               }
-                            } catch (e) {
+                              if (newPass.length < 6) {
+                                setSheetState(() => passwordError = isBn ? 'কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দিন' : 'Password must be at least 6 characters');
+                                return;
+                              }
+                              if (newPass != confirmPass) {
+                                setSheetState(() => passwordError = isBn ? 'নতুন পাসওয়ার্ড দুটি মিলছে না' : 'New passwords do not match');
+                                return;
+                              }
+
                               setSheetState(() {
-                                isLoading = false;
-                                errorMessage = e.toString().replaceAll('Exception: ', '');
+                                isChangingPassword = true;
+                                passwordError = null;
                               });
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+                              try {
+                                final response = await ApiService.post(
+                                  ApiEndpoints.changePassword,
+                                  {
+                                    'old_password': oldPass,
+                                    'new_password': newPass,
+                                    'confirm_password': confirmPass,
+                                  },
+                                  requireAuth: true,
+                                );
+
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(response['detail'] ?? (isBn ? 'পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে!' : 'Password updated successfully!')),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                setSheetState(() {
+                                  isChangingPassword = false;
+                                  passwordError = e.toString().replaceAll('Exception: ', '');
+                                });
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: isChangingPassword
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(
+                              isBn ? 'পাসওয়ার্ড আপডেট করুন' : 'Update Password',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
                     ),
-                    child: isLoading
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : Text(
-                            isBn ? 'পাসওয়ার্ড আপডেট করুন' : 'Update Password',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
@@ -352,6 +574,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          // ACCOUNT MANAGEMENT
+          _buildSectionHeader(isBn ? 'অ্যাকাউন্ট পরিচালনা' : 'ACCOUNT MANAGEMENT'),
+          ListTile(
+            leading: const Icon(Icons.manage_accounts_outlined, color: AppColors.primary),
+            title: Text(isBn ? 'অ্যাকাউন্ট পরিচালনা করুন' : 'Manage Account'),
+            subtitle: Text(isBn ? 'ছবি, ইউজারনেম ও পাসওয়ার্ড আপডেট' : 'Profile photo, username & password'),
+            onTap: () => _showManageAccountSheet(context, isBn),
+          ),
+          const SizedBox(height: 20),
+
           // APPEARANCE
           _buildSectionHeader(isBn ? 'অ্যাপিয়ারেন্স' : 'APPEARANCE'),
           SwitchListTile(
@@ -412,12 +644,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // PRIVACY & SECURITY
           _buildSectionHeader(isBn ? 'গোপনীয়তা ও নিরাপত্তা' : 'PRIVACY & SECURITY'),
-          ListTile(
-            leading: const Icon(Icons.lock_outline_rounded, color: AppColors.primary),
-            title: Text(isBn ? 'পাসওয়ার্ড পরিবর্তন' : 'Change Password'),
-            subtitle: Text(isBn ? 'আপনার পাসওয়ার্ড আপডেট করুন' : 'Update your password'),
-            onTap: () => _showChangePasswordSheet(context, isBn),
-          ),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.primary),
             title: Text(isBn ? 'গোপনীয়তা সেটিংস' : 'Privacy Settings'),

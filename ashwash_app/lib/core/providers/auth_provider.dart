@@ -208,6 +208,39 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> updateProfile({String? username, String? profilePicBase64}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final payload = <String, dynamic>{};
+      if (username != null && username.trim().isNotEmpty) payload['username'] = username.trim();
+      if (profilePicBase64 != null && profilePicBase64.isNotEmpty) payload['profile_picture'] = profilePicBase64;
+
+      final response = await ApiService.put(
+        ApiEndpoints.profile,
+        payload,
+        requireAuth: true,
+      );
+
+      if (response != null && response is Map<String, dynamic>) {
+        _currentUser = UserModel.fromJson(response);
+      } else {
+        await fetchProfile();
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> setCategoryPreferences(List<String> categoryIds) async {
     try {
       await ApiService.post(

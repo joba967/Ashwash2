@@ -1,11 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/dashboard_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/notification_provider.dart';
 import '../auth/presentation/screens/login_screen.dart';
+import '../mood/providers/mood_provider.dart';
 import '../notifications/screens/notification_screen.dart';
+import '../specialist/providers/specialist_provider.dart';
 import 'settings_screen.dart';
 import 'report_screen.dart';
 
@@ -33,6 +37,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final langProvider = Provider.of<LanguageProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final notifProvider = Provider.of<NotificationProvider>(context);
+    final dashboardProvider = Provider.of<DashboardProvider>(context);
+    final specialistProvider = Provider.of<SpecialistProvider>(context);
+    final moodProvider = Provider.of<MoodProvider>(context);
+
     final isBn = langProvider.isBangla;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = authProvider.currentUser;
@@ -42,6 +50,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : (user?.username.isNotEmpty == true ? user!.username : 'User');
     final String email = user?.email.isNotEmpty == true ? user!.email : 'user@example.com';
     final String initial = displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'U';
+
+    // REAL DYNAMIC STATS COMPUTATION (NO HARDCODED DUMMY NUMBERS)
+    final int realCoursesCount = dashboardProvider.enrolledCourses.length;
+    final int realSessionsCount = specialistProvider.appointments.length;
+    final int realPointsCount = (realCoursesCount * 100) + (realSessionsCount * 50) + (moodProvider.logs.length * 20);
+
+    // PROFILE PICTURE FROM DEVICE/BACKEND
+    ImageProvider? avatarImage;
+    final avatarStr = user?.avatar;
+    if (avatarStr != null && avatarStr.isNotEmpty) {
+      if (avatarStr.startsWith('data:image') || avatarStr.length > 200) {
+        try {
+          final cleanBase64 = avatarStr.contains(',') ? avatarStr.split(',').last : avatarStr;
+          avatarImage = MemoryImage(base64Decode(cleanBase64));
+        } catch (_) {}
+      } else if (avatarStr.startsWith('http')) {
+        avatarImage = NetworkImage(avatarStr);
+      }
+    }
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : const Color(0xFFFAFAFA),
@@ -106,18 +133,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
         child: Column(
           children: [
-            // User Avatar Badge with Soft Purple Drop Shadow
+            // User Avatar Badge (Supports Uploaded Device Profile Photo)
             Center(
               child: Container(
-                width: 90,
-                height: 90,
+                width: 94,
+                height: 94,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFC084FC), Color(0xFFA855F7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  border: Border.all(color: const Color(0xFFA855F7), width: 3),
+                  gradient: avatarImage == null
+                      ? const LinearGradient(
+                          colors: [Color(0xFFC084FC), Color(0xFFA855F7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFA855F7).withOpacity(0.3),
@@ -126,15 +156,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                child: CircleAvatar(
+                  radius: 44,
+                  backgroundColor: Colors.transparent,
+                  backgroundImage: avatarImage,
+                  child: avatarImage == null
+                      ? Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 38,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        )
+                      : null,
                 ),
               ),
             ),
@@ -163,13 +198,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Stats Summary Cards (3 Cards Row)
+            // Real Stats Summary Cards Row (Actual dynamic values)
             Row(
               children: [
                 Expanded(
                   child: _buildStatBox(
                     context,
-                    count: '1',
+                    count: '$realCoursesCount',
                     label: isBn ? 'কোর্সসমূহ' : 'Courses',
                     icon: Icons.menu_book_rounded,
                     iconColor: const Color(0xFFA855F7),
@@ -180,7 +215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Expanded(
                   child: _buildStatBox(
                     context,
-                    count: '5',
+                    count: '$realSessionsCount',
                     label: isBn ? 'সেশন' : 'Sessions',
                     icon: Icons.calendar_today_outlined,
                     iconColor: const Color(0xFF3B82F6),
@@ -191,7 +226,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Expanded(
                   child: _buildStatBox(
                     context,
-                    count: '450',
+                    count: '$realPointsCount',
                     label: isBn ? 'পয়েন্ট' : 'Points',
                     icon: Icons.workspace_premium_outlined,
                     iconColor: const Color(0xFFF59E0B),
@@ -235,7 +270,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             _buildMenuItemCard(
               context,
-              title: isBn ? 'সেটিংস' : 'Settings',
+              title: isBn ? 'সেটিংস (অ্যাকাউন্ট পরিচালনা)' : 'Settings & Account',
               icon: Icons.settings_outlined,
               iconColor: const Color(0xFF64748B),
               isDark: isDark,

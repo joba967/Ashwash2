@@ -78,6 +78,27 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
+    def update(self, request, *args, **kwargs):
+        user = self.request.user
+        username = request.data.get('username')
+        profile_picture = request.data.get('profile_picture') or request.data.get('profile_picture_base64')
+
+        if username and username.strip() != user.username:
+            new_username = username.strip()
+            if User.objects.filter(username__iexact=new_username).exclude(id=user.id).exists():
+                return Response({'detail': 'This username is already taken.'}, status=status.HTTP_400_BAD_REQUEST)
+            user.username = new_username
+
+        if profile_picture:
+            user.profile_picture = profile_picture
+            preferences = user.preferences or {}
+            preferences['profile_picture_base64'] = profile_picture
+            user.preferences = preferences
+
+        user.save()
+        serializer = self.get_serializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.all()
     permission_classes = (permissions.AllowAny,)
