@@ -40,6 +40,13 @@ class AuthProvider with ChangeNotifier {
           _currentUser = UserModel.fromJson(profileData);
         } catch (_) {}
       }
+
+      if (_currentUser != null) {
+        final savedAvatar = prefs.getString('saved_user_avatar_base64_${_currentUser!.id}');
+        if (savedAvatar != null && savedAvatar.isNotEmpty) {
+          _currentUser = _currentUser!.copyWith(avatar: savedAvatar);
+        }
+      }
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
@@ -191,7 +198,7 @@ class AuthProvider with ChangeNotifier {
         photoUrl: googleUser.photoUrl ?? '',
       );
     } catch (e) {
-      debugPrint("Google Native Sign-In SDK Note (Developer SHA-1 / ApiException): $e");
+      debugPrint("Google Native Sign-In SDK Note: $e");
       _isLoading = false;
       notifyListeners();
       return {'success': false, 'isNewUser': false, 'cancelled': false, 'fallback': true, 'error': e.toString()};
@@ -201,10 +208,37 @@ class AuthProvider with ChangeNotifier {
   Future<void> fetchProfile() async {
     try {
       final data = await ApiService.get(ApiEndpoints.profile, requireAuth: true);
-      _currentUser = UserModel.fromJson(data);
+      final fetchedUser = UserModel.fromJson(data);
+      if (_currentUser != null && (_currentUser!.avatar?.isNotEmpty ?? false) && (fetchedUser.avatar == null || fetchedUser.avatar!.isEmpty)) {
+        _currentUser = fetchedUser.copyWith(avatar: _currentUser!.avatar);
+      } else {
+        _currentUser = fetchedUser;
+      }
       notifyListeners();
     } catch (e) {
       _errorMessage = e.toString();
+    }
+  }
+
+  Future<void> updateProfilePicLocally(String base64Image) async {
+    if (_currentUser != null) {
+      _currentUser = _currentUser!.copyWith(avatar: base64Image);
+      notifyListeners();
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('saved_user_avatar_base64_${_currentUser!.id}', base64Image);
+      } catch (_) {}
+
+      try {
+        await ApiService.put(
+          ApiEndpoints.profile,
+          {'profile_picture': base64Image},
+          requireAuth: true,
+        );
+      } catch (e) {
+        debugPrint("Background profile pic upload sync note: $e");
+      }
     }
   }
 
@@ -214,20 +248,21 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final payload = <String, dynamic>{};
-      if (username != null && username.trim().isNotEmpty) payload['username'] = username.trim();
-      if (profilePicBase64 != null && profilePicBase64.isNotEmpty) payload['profile_picture'] = profilePicBase64;
+      if (profilePicBase64 != null && profilePicBase64.isNotEmpty) {
+        await updateProfilePicLocally(profilePicBase64);
+      }
 
-      final response = await ApiService.put(
-        ApiEndpoints.profile,
-        payload,
-        requireAuth: true,
-      );
+      if (username != null && username.trim().isNotEmpty) {
+        final response = await ApiService.put(
+          ApiEndpoints.profile,
+          {'username': username.trim()},
+          requireAuth: true,
+        );
 
-      if (response != null && response is Map<String, dynamic>) {
-        _currentUser = UserModel.fromJson(response);
-      } else {
-        await fetchProfile();
+        if (response != null && response is Map<String, dynamic>) {
+          final updated = UserModel.fromJson(response);
+          _currentUser = updated.copyWith(avatar: _currentUser?.avatar ?? updated.avatar);
+        }
       }
 
       _isLoading = false;

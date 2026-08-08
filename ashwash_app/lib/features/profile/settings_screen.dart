@@ -32,9 +32,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool obscureOld = true;
     bool obscureNew = true;
     bool obscureConfirm = true;
-    bool isSavingProfile = false;
+    bool isUploadingImage = false;
+    bool isSavingUsername = false;
     bool isChangingPassword = false;
-    String? profileError;
+    String? usernameError;
     String? passwordError;
 
     await showModalBottomSheet(
@@ -48,18 +49,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
-            final currentUser = authProvider.currentUser;
+            final currentUser = Provider.of<AuthProvider>(context).currentUser;
             final avatarStr = currentUser?.avatar;
 
             ImageProvider? avatarImage;
             if (avatarStr != null && avatarStr.isNotEmpty) {
-              if (avatarStr.startsWith('data:image') || avatarStr.length > 200) {
+              if (avatarStr.startsWith('data:image') || avatarStr.length > 100) {
                 try {
                   final cleanBase64 = avatarStr.contains(',') ? avatarStr.split(',').last : avatarStr;
                   avatarImage = MemoryImage(base64Decode(cleanBase64));
                 } catch (_) {}
               } else if (avatarStr.startsWith('http')) {
                 avatarImage = NetworkImage(avatarStr);
+              }
+            }
+
+            Future<void> pickAndUploadImage() async {
+              try {
+                setSheetState(() => isUploadingImage = true);
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.image,
+                  allowMultiple: false,
+                  withData: true,
+                );
+
+                if (result != null && result.files.isNotEmpty) {
+                  final pickedFile = result.files.first;
+                  List<int>? bytes = pickedFile.bytes;
+
+                  if (bytes == null && pickedFile.path != null) {
+                    bytes = await File(pickedFile.path!).readAsBytes();
+                  }
+
+                  if (bytes != null && bytes.isNotEmpty) {
+                    final base64String = 'data:image/png;base64,${base64Encode(bytes)}';
+                    
+                    // INSTANT LOCAL UPDATE
+                    await authProvider.updateProfilePicLocally(base64String);
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(isBn ? 'গ্যালারি থেকে প্রোফাইল ছবি আপডেট হয়েছে!' : 'Profile picture updated from device!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  }
+                }
+              } catch (e) {
+                debugPrint("Image pick error: $e");
+              } finally {
+                setSheetState(() => isUploadingImage = false);
               }
             }
 
@@ -103,73 +144,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 16),
                     const Divider(),
 
-                    // SECTION 1: PROFILE PICTURE SELECTION (FROM DEVICE GALLERY)
+                    // SECTION 1: PROFILE PICTURE SELECTION (INSTANT DEVICE GALLERY UPDATE)
                     Center(
                       child: Column(
                         children: [
                           Stack(
                             children: [
                               Container(
-                                width: 96,
-                                height: 96,
+                                width: 100,
+                                height: 100,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: AppColors.primary, width: 3),
+                                  border: Border.all(color: AppColors.primary, width: 3.5),
                                   color: AppColors.primary.withOpacity(0.1),
                                 ),
                                 child: CircleAvatar(
-                                  radius: 46,
-                                  backgroundColor: Colors.transparent,
+                                  radius: 48,
+                                  backgroundColor: isDark ? AppColors.darkSurface : Colors.grey.shade200,
                                   backgroundImage: avatarImage,
-                                  child: avatarImage == null
-                                      ? Text(
-                                          (currentUser?.username.isNotEmpty == true ? currentUser!.username[0].toUpperCase() : 'U'),
-                                          style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppColors.primary),
-                                        )
-                                      : null,
+                                  child: isUploadingImage
+                                      ? const CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3)
+                                      : (avatarImage == null
+                                          ? Text(
+                                              (currentUser?.username.isNotEmpty == true ? currentUser!.username[0].toUpperCase() : 'U'),
+                                              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                            )
+                                          : null),
                                 ),
                               ),
                               Positioned(
-                                bottom: 0,
-                                right: 0,
+                                bottom: 2,
+                                right: 2,
                                 child: InkWell(
-                                  onTap: () async {
-                                    final result = await FilePicker.platform.pickFiles(
-                                      type: FileType.image,
-                                      allowMultiple: false,
-                                      withData: true,
-                                    );
-
-                                    if (result != null && result.files.isNotEmpty) {
-                                      final pickedFile = result.files.first;
-                                      List<int>? bytes = pickedFile.bytes;
-
-                                      if (bytes == null && pickedFile.path != null) {
-                                        bytes = await File(pickedFile.path!).readAsBytes();
-                                      }
-
-                                      if (bytes != null) {
-                                        final base64String = 'data:image/png;base64,${base64Encode(bytes)}';
-                                        setSheetState(() => isSavingProfile = true);
-                                        final ok = await authProvider.updateProfile(profilePicBase64: base64String);
-                                        setSheetState(() => isSavingProfile = false);
-
-                                        if (ok && context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(isBn ? 'প্রোফাইল ছবি আপডেট হয়েছে!' : 'Profile picture updated!'),
-                                              backgroundColor: Colors.green,
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    }
-                                  },
+                                  onTap: isUploadingImage ? null : pickAndUploadImage,
                                   child: Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: const BoxDecoration(
                                       color: AppColors.primary,
                                       shape: BoxShape.circle,
+                                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
                                     ),
                                     child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
                                   ),
@@ -179,39 +192,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const SizedBox(height: 8),
                           TextButton.icon(
-                            onPressed: () async {
-                              final result = await FilePicker.platform.pickFiles(
-                                type: FileType.image,
-                                allowMultiple: false,
-                                withData: true,
-                              );
-
-                              if (result != null && result.files.isNotEmpty) {
-                                final pickedFile = result.files.first;
-                                List<int>? bytes = pickedFile.bytes;
-
-                                if (bytes == null && pickedFile.path != null) {
-                                  bytes = await File(pickedFile.path!).readAsBytes();
-                                }
-
-                                if (bytes != null) {
-                                  final base64String = 'data:image/png;base64,${base64Encode(bytes)}';
-                                  setSheetState(() => isSavingProfile = true);
-                                  final ok = await authProvider.updateProfile(profilePicBase64: base64String);
-                                  setSheetState(() => isSavingProfile = false);
-
-                                  if (ok && context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(isBn ? 'গ্যালারি থেকে প্রোফাইল ছবি আপডেট হয়েছে!' : 'Profile picture updated from device!'),
-                                        backgroundColor: Colors.green,
-                                      ),
-                                    );
-                                  }
-                                }
-                              }
-                            },
-                            icon: const Icon(Icons.photo_library_outlined, size: 18),
+                            onPressed: isUploadingImage ? null : pickAndUploadImage,
+                            icon: isUploadingImage
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.photo_library_outlined, size: 18),
                             label: Text(
                               isBn ? 'ডিভাইস গ্যালারি থেকে ছবি আপলোড করুন' : 'Add/Change Photo from Device',
                               style: const TextStyle(fontWeight: FontWeight.bold),
@@ -222,7 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // SECTION 2: CHANGE USERNAME
+                    // SECTION 2: CHANGE USERNAME (INDEPENDENT LOADING STATE)
                     Text(
                       isBn ? 'ইউজারনেম পরিবর্তন করুন' : 'Change Username',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? Colors.white : Colors.black87),
@@ -241,19 +225,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
-                          onPressed: isSavingProfile
+                          onPressed: isSavingUsername
                               ? null
                               : () async {
                                   final newName = usernameCtrl.text.trim();
                                   if (newName.isEmpty) return;
 
                                   setSheetState(() {
-                                    isSavingProfile = true;
-                                    profileError = null;
+                                    isSavingUsername = true;
+                                    usernameError = null;
                                   });
 
                                   final ok = await authProvider.updateProfile(username: newName);
-                                  setSheetState(() => isSavingProfile = false);
+                                  setSheetState(() => isSavingUsername = false);
 
                                   if (ok && context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -263,23 +247,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                     );
                                   } else {
-                                    setSheetState(() => profileError = authProvider.errorMessage);
+                                    setSheetState(() => usernameError = authProvider.errorMessage);
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: isSavingProfile
+                          child: isSavingUsername
                               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                               : Text(isBn ? 'সেভ' : 'Save', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
-                    if (profileError != null) ...[
+                    if (usernameError != null) ...[
                       const SizedBox(height: 6),
-                      Text(profileError!, style: const TextStyle(color: AppColors.emergency, fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text(usernameError!, style: const TextStyle(color: AppColors.emergency, fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
                     const SizedBox(height: 24),
                     const Divider(),
