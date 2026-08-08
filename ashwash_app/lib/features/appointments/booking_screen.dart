@@ -368,8 +368,10 @@ class _BookingScreenState extends State<BookingScreen> {
                                 SpecialistAppointmentModel(
                                   id: 'app_${DateTime.now().millisecondsSinceEpoch}',
                                   patientId: 'pat_new_${DateTime.now().millisecondsSinceEpoch}',
-                                  patientName: 'Patient User (Booked Session)',
-                                  patientAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+                                  patientName: 'Patient User',
+                                  patientAvatar: '',
+                                  specialistName: widget.specialist.name,
+                                  specialistAvatar: widget.specialist.avatarUrl,
                                   date: appDateStr,
                                   timeSlot: _selectedTimeSlot,
                                   category: widget.specialist.specialization,

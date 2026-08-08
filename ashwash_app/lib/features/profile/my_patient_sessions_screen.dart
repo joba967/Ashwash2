@@ -23,7 +23,7 @@ class _MyPatientSessionsScreenState extends State<MyPatientSessionsScreen> {
     final isBn = langProvider.isBangla;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final allAppointments = specialistProvider.appointments;
+    final allAppointments = specialistProvider.patientBookedSessions;
 
     List<SpecialistAppointmentModel> filteredAppointments = allAppointments;
     if (_selectedFilter == 'confirmed') {
@@ -174,14 +174,14 @@ class _MyPatientSessionsScreenState extends State<MyPatientSessionsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Dr. Mekhala Sarkar', // Specialist Name
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 17,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      Text(
+                        app.specialistName.isNotEmpty ? app.specialistName : 'Dr. Mekhala Sarkar',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 2),
                     Text(
                       isBn ? 'ক্লিনিক্যাল সাইকোলজিস্ট' : 'Clinical Psychologist & Consultant',

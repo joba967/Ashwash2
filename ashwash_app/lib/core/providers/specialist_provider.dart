@@ -144,6 +144,8 @@ class SpecialistAppointmentModel {
   final String patientId;
   final String patientName;
   final String patientAvatar;
+  final String specialistName;
+  final String specialistAvatar;
   final String date;
   final String timeSlot;
   final String category;
@@ -156,6 +158,8 @@ class SpecialistAppointmentModel {
     required this.patientId,
     required this.patientName,
     required this.patientAvatar,
+    this.specialistName = 'Dr. Mekhala Sarkar',
+    this.specialistAvatar = '',
     required this.date,
     required this.timeSlot,
     required this.category,
@@ -233,6 +237,9 @@ class SpecialistProvider with ChangeNotifier {
     return List.unmodifiable(filtered);
   }
 
+  List<SpecialistAppointmentModel> _patientBookedSessions = [];
+  List<SpecialistAppointmentModel> get patientBookedSessions => List.unmodifiable(_patientBookedSessions);
+
   SpecialistProvider() {
     _loadCoursesFromStorage();
     _loadAppointmentsFromStorage();
@@ -241,14 +248,16 @@ class SpecialistProvider with ChangeNotifier {
   Future<void> _loadAppointmentsFromStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedStr = prefs.getString('persisted_specialist_appointments_v2');
+      final savedStr = prefs.getString('persisted_patient_booked_sessions_v3');
       if (savedStr != null) {
         final List<dynamic> decoded = jsonDecode(savedStr);
-        final loaded = decoded.map((a) => SpecialistAppointmentModel(
+        _patientBookedSessions = decoded.map((a) => SpecialistAppointmentModel(
           id: a['id'].toString(),
           patientId: a['patientId'] ?? 'pat_new',
           patientName: a['patientName'] ?? 'Patient User',
-          patientAvatar: a['patientAvatar'] ?? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+          patientAvatar: a['patientAvatar'] ?? '',
+          specialistName: a['specialistName'] ?? 'Dr. Mekhala Sarkar',
+          specialistAvatar: a['specialistAvatar'] ?? '',
           date: a['date'] ?? 'Today',
           timeSlot: a['timeSlot'] ?? '10:00 AM - 11:00 AM',
           category: a['category'] ?? 'Mental Wellness',
@@ -256,12 +265,6 @@ class SpecialistProvider with ChangeNotifier {
           meetingLink: a['meetingLink'] ?? 'https://meet.google.com/ash-wash-wellness',
           notes: a['notes'] ?? 'Booked session',
         )).toList();
-
-        for (var app in loaded) {
-          if (!_appointments.any((item) => item.id == app.id)) {
-            _appointments.insert(0, app);
-          }
-        }
       }
     } catch (_) {}
     notifyListeners();
@@ -270,11 +273,13 @@ class SpecialistProvider with ChangeNotifier {
   Future<void> _saveAppointmentsToStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonList = _appointments.map((a) => {
+      final jsonList = _patientBookedSessions.map((a) => {
         'id': a.id,
         'patientId': a.patientId,
         'patientName': a.patientName,
         'patientAvatar': a.patientAvatar,
+        'specialistName': a.specialistName,
+        'specialistAvatar': a.specialistAvatar,
         'date': a.date,
         'timeSlot': a.timeSlot,
         'category': a.category,
@@ -282,12 +287,12 @@ class SpecialistProvider with ChangeNotifier {
         'meetingLink': a.meetingLink,
         'notes': a.notes,
       }).toList();
-      await prefs.setString('persisted_specialist_appointments_v2', jsonEncode(jsonList));
+      await prefs.setString('persisted_patient_booked_sessions_v3', jsonEncode(jsonList));
     } catch (_) {}
   }
 
   void addAppointment(SpecialistAppointmentModel appointment) {
-    _appointments.insert(0, appointment);
+    _patientBookedSessions.insert(0, appointment);
     _saveAppointmentsToStorage();
     notifyListeners();
   }

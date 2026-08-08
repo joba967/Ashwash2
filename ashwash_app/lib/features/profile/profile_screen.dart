@@ -53,7 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // REAL DYNAMIC STATS COMPUTATION (NO HARDCODED DUMMY NUMBERS)
     final int realCoursesCount = dashboardProvider.enrolledCourses.length;
-    final int realSessionsCount = specialistProvider.appointments.length;
+    final int realSessionsCount = specialistProvider.patientBookedSessions.length;
 
     // PROFILE PICTURE FROM DEVICE/BACKEND
     ImageProvider? avatarImage;
