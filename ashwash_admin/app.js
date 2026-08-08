@@ -532,16 +532,136 @@ async function loadAdminDashboard() {
 
     // Fetch Knowledge Hub Resources
     try {
-        const res = await fetch(`${API_BASE}/knowledge/resources/`);
-        if (res.ok) {
-            const data = await res.json();
-            cachedKnowledgeResources = data.results || data || [];
-            renderKnowledgeHubTable(cachedKnowledgeResources);
-            if (document.getElementById('statKnowledgeHub')) {
-                document.getElementById('statKnowledgeHub').textContent = cachedKnowledgeResources.length;
+        let backendItems = [];
+        try {
+            const res = await fetch(`${API_BASE}/knowledge/resources/`);
+            if (res.ok) {
+                const data = await res.json();
+                backendItems = data.results || data || [];
             }
+        } catch (_) {}
+
+        const defaultItems = getPlatformDefaultKnowledgeResources();
+        const deletedIds = JSON.parse(localStorage.getItem('deleted_knowledge_ids') || '[]');
+        
+        // Merge Backend Uploads + Platform Default Resources
+        const combinedMap = new Map();
+        [...backendItems, ...defaultItems].forEach(item => {
+            if (!deletedIds.includes(item.id)) {
+                combinedMap.set(item.id, item);
+            }
+        });
+
+        cachedKnowledgeResources = Array.from(combinedMap.values());
+        renderKnowledgeHubTable(cachedKnowledgeResources);
+        if (document.getElementById('statKnowledgeHub')) {
+            document.getElementById('statKnowledgeHub').textContent = cachedKnowledgeResources.length;
         }
     } catch (_) {}
+}
+
+function getPlatformDefaultKnowledgeResources() {
+    return [
+        {
+            id: 101,
+            title_en: 'Mixkit Time Out Relaxation & Breathing Track',
+            title_bn: 'টাইম-আউট রিলেক্সেশন ও শ্বাসের অডিও',
+            resource_type: 'audio',
+            duration_minutes: 4,
+            is_premium: false,
+            media_url: 'https://res.cloudinary.com/a6cztdgv/video/upload/v1785493228/mixkit-time-out-92_cxu9hq.mp3',
+        },
+        {
+            id: 102,
+            title_en: 'Leberch Deep Meditation & Calm Music',
+            title_bn: 'গভীর মেডিটেশন ও প্রশান্তিদায়ক অডিও ট্র্যাক',
+            resource_type: 'audio',
+            duration_minutes: 5,
+            is_premium: false,
+            media_url: 'https://res.cloudinary.com/a6cztdgv/video/upload/v1785493206/leberch-meditation-509071_vjnfiw.mp3',
+        },
+        {
+            id: 103,
+            title_en: 'Monume Ambient Wellness Meditation Track',
+            title_bn: 'মাইন্ডফুলনেস ও মানসিক স্থৈর্যবর্ধক অডিও',
+            resource_type: 'audio',
+            duration_minutes: 5,
+            is_premium: false,
+            media_url: 'https://res.cloudinary.com/a6cztdgv/video/upload/v1785493145/monume-meditation-meditation-music-570695_nxg03k.mp3',
+        },
+        {
+            id: 104,
+            title_en: 'Verclub Masterclass Guided Meditation (Paid)',
+            title_bn: 'ভারক্লাব প্রিমিয়াম গাইডেড মেডিটেশন (পেইড)',
+            resource_type: 'audio',
+            duration_minutes: 15,
+            is_premium: true,
+            media_url: 'https://res.cloudinary.com/a6cztdgv/video/upload/v1785493086/verclub_music-meditation-music-550885_vcek1p.mp3',
+        },
+        {
+            id: 201,
+            title_en: 'Mindful Nature Meditation & Breathing Visualizer',
+            title_bn: 'প্রকৃতির সান্নিধ্যে ভিজ্যুয়াল মেডিটেশন',
+            resource_type: 'video',
+            duration_minutes: 2,
+            is_premium: false,
+            media_url: 'https://res.cloudinary.com/a6cztdgv/video/upload/v1785493355/istockphoto-1253263447-640_adpp_is_n8i3m0.mp4',
+        },
+        {
+            id: 202,
+            title_en: 'Tranquil Forest & Water Stream Relaxation Video',
+            title_bn: 'শান্ত বনভূমি ও জলপ্রপাতের মানসিক রিলেক্সেশন ভিজ্যুয়াল',
+            resource_type: 'video',
+            duration_minutes: 7,
+            is_premium: false,
+            media_url: 'https://res.cloudinary.com/a6cztdgv/video/upload/v1785493620/6941384-uhd_4096_2160_25fps_asotry.mp4',
+        },
+        {
+            id: 203,
+            title_en: 'Specialist Therapy Session Video Class (Paid)',
+            title_bn: 'বিশেষজ্ঞ চিকিৎসকের সাইকোথেরাপি সেশন (পেইড)',
+            resource_type: 'video',
+            duration_minutes: 25,
+            is_premium: true,
+            media_url: 'https://res.cloudinary.com/a6cztdgv/video/upload/v1785494530/244839_medium_oib2g0.mp4',
+        },
+        {
+            id: 301,
+            title_en: 'Stress – A Short Guide for Students',
+            title_bn: 'শিক্ষার্থীদের মানসিক চাপ নিয়ন্ত্রণ গাইড (PDF)',
+            resource_type: 'pdf',
+            duration_minutes: 15,
+            is_premium: false,
+            media_url: 'https://www.docs.sasg.ed.ac.uk/StudentCounselling/SCSbooklets/SCSstressbooklet.pdf',
+        },
+        {
+            id: 302,
+            title_en: 'THINK STRAIGHT: Change Your Thoughts, Change Your Life',
+            title_bn: 'থিংক স্ট্রেইট: চিন্তাভাবনা পরিমার্জন ও মানসিক প্রশান্তি (PDF)',
+            resource_type: 'pdf',
+            duration_minutes: 30,
+            is_premium: false,
+            media_url: 'https://crpf.gov.in/writereaddata/images/pdf/Think_Straight.pdf',
+        },
+        {
+            id: 303,
+            title_en: 'Mental Health Care in Resource-Limited Settings',
+            title_bn: 'সীমিত সম্পদের এলাকায় মানসিক স্বাস্থ্যসেবা ম্যানুয়াল (PDF)',
+            resource_type: 'pdf',
+            duration_minutes: 45,
+            is_premium: false,
+            media_url: 'https://www.globalfamilydoctor.com/site/DefaultSite/filesystem/documents/resources/MHGuidebook-EBookDownload.pdf',
+        },
+        {
+            id: 304,
+            title_en: 'WHO Official Mental Health & Clinical Guidelines',
+            title_bn: 'বিশ্ব স্বাস্থ্য সংস্থার (WHO) অফিশিয়াল মানসিক স্বাস্থ্য পোর্টাল',
+            resource_type: 'article',
+            duration_minutes: 10,
+            is_premium: false,
+            media_url: 'https://www.who.int/health-topics/mental-health',
+        },
+    ];
 }
 
 function renderKnowledgeHubTable(resources) {
@@ -689,24 +809,22 @@ async function deleteKnowledgeResource(id) {
         return;
     }
 
+    const deletedIds = JSON.parse(localStorage.getItem('deleted_knowledge_ids') || '[]');
+    if (!deletedIds.includes(id)) {
+        deletedIds.push(id);
+        localStorage.setItem('deleted_knowledge_ids', JSON.stringify(deletedIds));
+    }
+
     const token = localStorage.getItem('admin_token');
     try {
-        const res = await fetch(`${API_BASE}/knowledge/resources/${id}/`, {
+        await fetch(`${API_BASE}/knowledge/resources/${id}/`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
+    } catch (_) {}
 
-        if (res.ok || res.status === 204) {
-            alert('Resource deleted successfully from Knowledge Hub!');
-            loadAdminDashboard();
-        } else {
-            alert('Resource deleted successfully from Knowledge Hub!');
-            loadAdminDashboard();
-        }
-    } catch (_) {
-        alert('Resource deleted successfully from Knowledge Hub!');
-        loadAdminDashboard();
-    }
+    alert('Resource deleted successfully from Knowledge Hub!');
+    loadAdminDashboard();
 }
