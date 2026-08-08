@@ -128,11 +128,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   }
 
   void _showCoursePaymentModal(BuildContext context, bool isBn, CourseModel course) {
-    String selectedPaymentMethod = 'bKash';
     final mobileController = TextEditingController(text: '01711982341');
     final otpController = TextEditingController(text: '123456');
     final pinController = TextEditingController(text: '12345');
     bool isLoading = false;
+    const primaryThemeColor = Color(0xFFE2136E);
 
     showModalBottomSheet(
       context: context,
@@ -144,9 +144,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       builder: (modalCtx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final isBkash = selectedPaymentMethod == 'bKash';
-            final primaryThemeColor = isBkash ? const Color(0xFFE2136E) : const Color(0xFFF7921E);
-
             return Padding(
               padding: EdgeInsets.only(
                 left: 20,
@@ -173,7 +170,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isBn ? 'পেমেন্ট মেথড নির্বাচন করুন' : 'Course Payment Gateway',
+                        isBn ? 'bKash কোর্স পেমেন্ট' : 'Course bKash Payment',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                       ),
                       Container(
@@ -182,63 +179,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                           color: primaryThemeColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          isBkash ? 'bKash Sandbox API' : 'Nagad Gateway',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Payment Gateway Selector Chips
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => setModalState(() => selectedPaymentMethod = 'bKash'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: isBkash ? const Color(0xFFE2136E).withOpacity(0.1) : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: isBkash ? const Color(0xFFE2136E) : Colors.grey.shade300,
-                                width: isBkash ? 2 : 1,
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('📱 ', style: TextStyle(fontSize: 18)),
-                                Text('bKash', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE2136E))),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => setModalState(() => selectedPaymentMethod = 'Nagad'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: !isBkash ? const Color(0xFFF7921E).withOpacity(0.1) : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: !isBkash ? const Color(0xFFF7921E) : Colors.grey.shade300,
-                                width: !isBkash ? 2 : 1,
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('📲 ', style: TextStyle(fontSize: 18)),
-                                Text('Nagad', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF7921E))),
-                              ],
-                            ),
-                          ),
+                        child: const Text(
+                          'bKash Sandbox API',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                       ),
                     ],
@@ -260,7 +203,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                           children: [
                             Text(
                               'Invoice: INV-CRS-${course.id}',
-                              style: TextStyle(fontSize: 12, color: primaryThemeColor, fontWeight: FontWeight.bold),
+                              style: const TextStyle(fontSize: 12, color: primaryThemeColor, fontWeight: FontWeight.bold),
                             ),
                             Text(
                               'Fee: ৳${course.price.toStringAsFixed(0)}',
@@ -284,7 +227,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     controller: mobileController,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
-                      labelText: isBkash ? 'bKash Account Number' : 'Nagad Mobile Number',
+                      labelText: 'bKash Mobile Number',
                       prefixIcon: const Icon(Icons.phone_android),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -335,9 +278,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                               final notifProvider = Provider.of<NotificationProvider>(context, listen: false);
                               String verifiedTrxId = 'TR0011${DateTime.now().millisecondsSinceEpoch}';
 
-                              // Call bKash / Nagad REST API Endpoint
+                              // Call bKash REST API Endpoint
                               try {
-                                final payEndpoint = isBkash ? 'payments/bkash/execute/' : 'payments/nagad/execute/';
+                                const payEndpoint = 'payments/bkash/execute/';
                                 final response = await ApiService.post(payEndpoint, {
                                   'amount': course.price,
                                   'purpose': 'Course Enrollment: ${course.titleEn}',

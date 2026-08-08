@@ -31,7 +31,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
   final List<Map<String, String>> _paymentMethods = [
     {'name': 'bKash', 'icon': '📱'},
-    {'name': 'Nagad', 'icon': '📲'},
   ];
 
   @override
@@ -209,7 +208,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final pinController = TextEditingController(text: '12121');
     bool isLoading = false;
     final isBkash = _selectedPaymentMethod.toLowerCase() == 'bkash';
-    final primaryThemeColor = isBkash ? const Color(0xFFE2136E) : const Color(0xFFF7921E);
+    const primaryThemeColor = Color(0xFFE2136E);
 
     showModalBottomSheet(
       context: context,
@@ -253,9 +252,9 @@ class _BookingScreenState extends State<BookingScreen> {
                           color: primaryThemeColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          isBkash ? 'bKash Tokenized Checkout' : 'Nagad Payment Gateway',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        child: const Text(
+                          'bKash Tokenized Checkout API',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ),
                     ],
@@ -273,7 +272,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       children: [
                         Text(
                           'Invoice: INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-                          style: TextStyle(fontSize: 12, color: primaryThemeColor, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 12, color: primaryThemeColor, fontWeight: FontWeight.bold),
                         ),
                         Text(
                           'Amount: ৳${widget.specialist.feeBdt}',
@@ -288,7 +287,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     controller: mobileController,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
-                      labelText: isBkash ? 'bKash Account Number' : 'Nagad Mobile Number',
+                      labelText: 'bKash Mobile Number',
                       prefixIcon: const Icon(Icons.phone_android),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -350,7 +349,7 @@ class _BookingScreenState extends State<BookingScreen> {
                               } catch (_) {}
 
                               try {
-                                final payEndpoint = isBkash ? 'payments/bkash/execute/' : 'payments/nagad/execute/';
+                                const payEndpoint = 'payments/bkash/execute/';
                                 final response = await ApiService.post(payEndpoint, {
                                   'amount': widget.specialist.feeBdt,
                                   'purpose': 'Consultation Session with ${widget.specialist.name}',
