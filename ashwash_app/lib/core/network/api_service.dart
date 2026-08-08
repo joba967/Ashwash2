@@ -11,8 +11,8 @@ class ApiService {
   static String _activeHost = 'https://ashwash-backend.onrender.com/api';
   static final List<String> _candidateHosts = [
     'https://ashwash-backend.onrender.com/api',
-    'http://127.0.0.1:8000/api',
     'http://10.0.2.2:8000/api',
+    'http://127.0.0.1:8000/api',
   ];
 
   static Future<Map<String, String>> _getHeaders({bool requireAuth = true}) async {
@@ -51,13 +51,14 @@ class ApiService {
     final primaryUrl = _buildUrl(originalUrl, _activeHost);
     http.Response? response;
     try {
-      response = await requestFn(primaryUrl, headers).timeout(const Duration(seconds: 4));
+      // 20s timeout for Render free tier cold starts
+      response = await requestFn(primaryUrl, headers).timeout(const Duration(seconds: 20));
     } catch (_) {
       for (final host in _candidateHosts) {
         if (host == _activeHost) continue;
         try {
           final fallbackUrl = _buildUrl(originalUrl, host);
-          response = await requestFn(fallbackUrl, headers).timeout(const Duration(seconds: 4));
+          response = await requestFn(fallbackUrl, headers).timeout(const Duration(seconds: 6));
           _activeHost = host;
           ApiConfig.setCustomBaseUrl(host);
           break;
@@ -66,7 +67,7 @@ class ApiService {
     }
 
     if (response == null) {
-      throw Exception('Server Connection Error. Ensure Django backend is running on port 8000.');
+      throw Exception('সার্ভারের সাথে সংযোগ পাওয়া যাচ্ছে না। রেন্ডার ক্লাউড ব্যাকএন্ড চালু হচ্ছে, দয়া করে কয়েক সেকেন্ড পর আবার চেষ্টা করুন।');
     }
 
     return _processResponse(response);
