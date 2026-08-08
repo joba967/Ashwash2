@@ -54,7 +54,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // REAL DYNAMIC STATS COMPUTATION (NO HARDCODED DUMMY NUMBERS)
     final int realCoursesCount = dashboardProvider.enrolledCourses.length;
     final int realSessionsCount = specialistProvider.appointments.length;
-    final int realPointsCount = (realCoursesCount * 100) + (realSessionsCount * 50) + (moodProgressProvider.recentEntries.length * 20);
+    final int moodCount = moodProgressProvider.moodHistory.length;
+    final int realPointsCount = (realCoursesCount * 100) + (realSessionsCount * 50) + (moodCount * 20);
 
     // PROFILE PICTURE FROM DEVICE/BACKEND
     ImageProvider? avatarImage;
