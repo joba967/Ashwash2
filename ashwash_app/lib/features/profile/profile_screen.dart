@@ -7,10 +7,10 @@ import '../../core/providers/dashboard_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/notification_provider.dart';
 import '../../core/providers/specialist_provider.dart';
-import '../appointments/specialist_list_screen.dart';
 import '../auth/presentation/screens/login_screen.dart';
-import '../courses/courses_screen.dart';
 import '../notifications/screens/notification_screen.dart';
+import 'my_enrolled_courses_screen.dart';
+import 'my_patient_sessions_screen.dart';
 import 'settings_screen.dart';
 import 'report_screen.dart';
 
@@ -205,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const CoursesScreen()),
+                        MaterialPageRoute(builder: (_) => const MyEnrolledCoursesScreen()),
                       );
                     },
                     borderRadius: BorderRadius.circular(18),
@@ -225,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const SpecialistListScreen()),
+                        MaterialPageRoute(builder: (_) => const MyPatientSessionsScreen()),
                       );
                     },
                     borderRadius: BorderRadius.circular(18),
