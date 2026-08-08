@@ -4,8 +4,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/language_provider.dart';
 import '../../../../core/services/api_service.dart';
-import '../../../../data/models/category_model.dart';
-
 import '../../../navigation/presentation/screens/main_navigation_screen.dart';
 
 class CategorySelectionScreen extends StatefulWidget {
@@ -16,18 +14,25 @@ class CategorySelectionScreen extends StatefulWidget {
 }
 
 class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
-  String? _selectedCategoryId;
+  final Set<String> _selectedCategoryIds = {'1'};
+  bool _isSaving = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _selectedCategoryId = '1';
+  void _toggleCategory(String id) {
+    setState(() {
+      if (_selectedCategoryIds.contains(id)) {
+        if (_selectedCategoryIds.length > 1) {
+          _selectedCategoryIds.remove(id);
+        }
+      } else {
+        _selectedCategoryIds.add(id);
+      }
+    });
   }
 
-  Future<void> _saveAndProceed(String categoryId) async {
-    setState(() => _selectedCategoryId = categoryId);
+  Future<void> _saveAndProceed() async {
+    setState(() => _isSaving = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.setCategoryPreference(categoryId);
+    await authProvider.setCategoryPreferences(_selectedCategoryIds.toList());
 
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
@@ -37,16 +42,6 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
     );
   }
 
-  String _getCategoryTitle(String id) {
-    try {
-      final categories = ApiService().getMockCategories();
-      final cat = categories.firstWhere((c) => c.id.toString() == id);
-      return cat.titleEn;
-    } catch (_) {
-      return id;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final langProvider = Provider.of<LanguageProvider>(context);
@@ -54,33 +49,33 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
     final categories = ApiService().getMockCategories();
 
     return Scaffold(
-
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 24),
-            // Screen Header (Matching Figma Page 2 Screen 5)
+            // Header Title
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
                   Text(
-                    isBn ? 'আপনার বিভাগ নির্বাচন করুন' : 'Select Your Category',
+                    isBn ? 'আপনার ক্যাটাগরি নির্বাচন করুন (একাধিক বাছুন)' : 'Select Your Categories (Multiple)',
                     style: const TextStyle(
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     isBn
-                        ? 'ব্যক্তিগত কোর্স এবং সহায়তা পেতে আপনার বিভাগ বেছে নিন'
-                        : 'Choose your category to get personalized courses and support',
+                        ? 'আপনার প্রযোজ্য এক বা একাধিক ক্যাটাগরি বেছে নিন'
+                        : 'Select one or more categories that apply to you for personalized support',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                      color: Colors.grey.shade500,
                     ),
                   ),
                 ],
@@ -88,7 +83,7 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Category Card Scrollable List (Matching Figma Cards)
+            // Scrollable Cards List
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -96,7 +91,7 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
                 itemBuilder: (context, index) {
                   final cat = categories[index];
                   final catIdStr = cat.id.toString();
-                  final isSelected = _selectedCategoryId == catIdStr;
+                  final isSelected = _selectedCategoryIds.contains(catIdStr);
 
                   IconData iconData = Icons.favorite_rounded;
                   if (cat.icon == 'mother') iconData = Icons.family_restroom_rounded;
@@ -117,24 +112,23 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
                         ),
                       ],
                       border: isSelected
-                          ? Border.all(color: Colors.white, width: 3)
+                          ? Border.all(color: Colors.white, width: 3.5)
                           : null,
                     ),
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: () => _saveAndProceed(catIdStr),
+                        onTap: () => _toggleCategory(catIdStr),
                         borderRadius: BorderRadius.circular(20),
                         child: Padding(
                           padding: const EdgeInsets.all(20.0),
                           child: Row(
                             children: [
-                              // Circular Icon Background
                               Container(
                                 width: 52,
                                 height: 52,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withOpacity(0.25),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -145,7 +139,6 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
                               ),
                               const SizedBox(width: 16),
 
-                              // Title and Subtitle Text
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,55 +163,75 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
                                 ),
                               ),
 
-                              if (isSelected)
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 8.0),
-                                  child: Icon(
-                                    Icons.check_circle_rounded,
-                                    color: Colors.white,
-                                    size: 26,
-                                  ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: Icon(
+                                  isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                  color: Colors.white,
+                                  size: 28,
                                 ),
+                              ),
                             ],
                           ),
                         ),
                       ),
                     ),
                   );
-
                 },
               ),
             ),
 
-            // Bottom "Skip for now" Pill Button (Matching Figma Page 2 Screen 6)
+            // Bottom Continue & Skip Buttons
             Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-                      (route) => false,
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(color: Colors.grey.shade300),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _saveAndProceed,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      ),
+                      child: _isSaving
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                              isBn ? 'কন্টিনিউ করুন (${_selectedCategoryIds.length})' : 'Continue (${_selectedCategoryIds.length})',
+                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
                     ),
                   ),
-                  child: Text(
-                    isBn ? 'এখনই নয়' : 'Skip for now',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade700,
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+                          (route) => false,
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: Colors.grey.shade400),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: Text(
+                        isBn ? 'এখনই নয়' : 'Skip for now',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ],

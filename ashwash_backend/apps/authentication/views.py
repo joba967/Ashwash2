@@ -29,6 +29,7 @@ class RegisterView(generics.CreateAPIView):
         return Response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'is_new_user': True,
             'user': UserSerializer(user).data
         }, status=status.HTTP_201_CREATED)
 
@@ -44,7 +45,9 @@ class SocialGoogleAuthView(APIView):
             return Response({'detail': 'Email is required for Google Sign-In'}, status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.filter(email__iexact=email).first()
+        is_new_user = False
         if not user:
+            is_new_user = True
             name_parts = name.split(' ', 1)
             first_name = name_parts[0] if name_parts else 'Google'
             last_name = name_parts[1] if len(name_parts) > 1 else 'User'
@@ -64,46 +67,9 @@ class SocialGoogleAuthView(APIView):
         return Response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'is_new_user': is_new_user,
             'user': UserSerializer(user).data
         }, status=status.HTTP_200_OK)
-
-class SocialFacebookAuthView(APIView):
-    permission_classes = (permissions.AllowAny,)
-
-    def post(self, request):
-        email = request.data.get('email')
-        name = request.data.get('name', 'Facebook User')
-        profile_picture = request.data.get('profile_picture', '')
-
-        if not email:
-            fb_id = request.data.get('id', uuid.uuid4().hex[:8])
-            email = f"fb_{fb_id}@facebook.ashwash.com"
-
-        user = User.objects.filter(email__iexact=email).first()
-        if not user:
-            name_parts = name.split(' ', 1)
-            first_name = name_parts[0] if name_parts else 'Facebook'
-            last_name = name_parts[1] if len(name_parts) > 1 else 'User'
-            username = f"facebook_{uuid.uuid4().hex[:8]}"
-
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=uuid.uuid4().hex,
-                first_name=first_name,
-                last_name=last_name,
-                role=User.Role.PATIENT,
-                profile_picture=profile_picture
-            )
-
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-            'user': UserSerializer(user).data
-        }, status=status.HTTP_200_OK)
-
-
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
@@ -122,10 +88,17 @@ class SelectCategoryView(APIView):
 
     def post(self, request):
         category_ids = request.data.get('category_ids', [])
+        if isinstance(category_ids, (str, int)):
+            category_ids = [category_ids]
+
         user = request.user
-        user.selected_categories.set(category_ids)
+        if hasattr(user, 'selected_categories'):
+            try:
+                user.selected_categories.set(category_ids)
+            except Exception:
+                pass
         user.save()
-        return Response({'status': 'Categories updated successfully'}, status=status.HTTP_200_OK)
+        return Response({'status': 'Categories updated successfully', 'selected_categories': category_ids}, status=status.HTTP_200_OK)
 
 class UpdatePreferencesView(APIView):
     permission_classes = (permissions.IsAuthenticated,)

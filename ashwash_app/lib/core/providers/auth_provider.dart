@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../network/api_endpoints.dart';
 import '../network/api_service.dart';
@@ -9,35 +10,17 @@ class AuthProvider with ChangeNotifier {
   UserModel? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isFirstTimeUser = false;
 
-  // Local registered user database
-  List<Map<String, dynamic>> _persistedAccounts = [
-    {
-      'id': 1,
-      'email': 'doctor@ashwash.com',
-      'username': 'doctor',
-      'password': 'password123',
-      'first_name': 'Dr. Mekhala',
-      'last_name': 'Sarkar',
-      'role': 'SPECIALIST',
-      'preferred_category': 'Postpartum Depression',
-    },
-    {
-      'id': 2,
-      'email': 'patient@ashwash.com',
-      'username': 'patient',
-      'password': 'password123',
-      'first_name': 'Nusrat',
-      'last_name': 'Sultana',
-      'role': 'PATIENT',
-      'preferred_category': 'First Time Mother',
-    },
-  ];
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _currentUser != null;
   String? get errorMessage => _errorMessage;
+  bool get isFirstTimeUser => _isFirstTimeUser;
 
   AuthProvider() {
     _loadUserFromStorage();
@@ -48,33 +31,14 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedDbStr = prefs.getString('persisted_user_db_v2');
-      if (savedDbStr != null) {
-        final List<dynamic> decoded = jsonDecode(savedDbStr);
-        _persistedAccounts = List<Map<String, dynamic>>.from(decoded);
-      } else {
-        await prefs.setString('persisted_user_db_v2', jsonEncode(_persistedAccounts));
-      }
-
       final token = prefs.getString(ApiService.tokenKey);
       final savedEmail = prefs.getString('saved_user_email');
-      final savedRole = prefs.getString('saved_user_role');
 
       if (token != null) {
         try {
           final profileData = await ApiService.get(ApiEndpoints.profile, requireAuth: true);
           _currentUser = UserModel.fromJson(profileData);
         } catch (_) {}
-      }
-
-      if (_currentUser == null && savedEmail != null) {
-        final found = _persistedAccounts.firstWhere(
-          (acc) => (acc['email'] as String).toLowerCase() == savedEmail.toLowerCase(),
-          orElse: () => {},
-        );
-        if (found.isNotEmpty) {
-          _currentUser = UserModel.fromJson(found);
-        }
       }
     } catch (e) {
       _errorMessage = e.toString();
@@ -87,9 +51,8 @@ class AuthProvider with ChangeNotifier {
   Future<bool> login(String emailOrUsername, String password, {String role = 'PATIENT'}) async {
     _isLoading = true;
     _errorMessage = null;
+    _isFirstTimeUser = false;
     notifyListeners();
-
-    final input = emailOrUsername.trim().toLowerCase();
 
     try {
       final data = await ApiService.post(ApiEndpoints.login, {
@@ -133,21 +96,11 @@ class AuthProvider with ChangeNotifier {
   }) async {
     _isLoading = true;
     _errorMessage = null;
+    _isFirstTimeUser = true;
     notifyListeners();
 
     final cleanEmail = email.trim().toLowerCase();
     final cleanUsername = (username != null && username.trim().isNotEmpty) ? username.trim() : cleanEmail.split('@').first;
-
-    final newAccMap = {
-      'id': DateTime.now().millisecondsSinceEpoch,
-      'email': cleanEmail,
-      'username': cleanUsername,
-      'password': password,
-      'first_name': firstName.isEmpty ? (role == 'SPECIALIST' ? 'Dr. Mekhala' : 'Ashwash') : firstName,
-      'last_name': lastName,
-      'role': role,
-      'preferred_category': 'First Time Mother',
-    };
 
     try {
       final data = await ApiService.post(ApiEndpoints.register, {
@@ -180,21 +133,36 @@ class AuthProvider with ChangeNotifier {
     return true;
   }
 
-  Future<bool> loginWithGoogle({required String email, required String name, String? photoUrl}) async {
+  Future<Map<String, dynamic>> loginWithGoogle() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
+      // Trigger native OS Google Account Picker sheet
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        _isLoading = false;
+        notifyListeners();
+        return {'success': false, 'isNewUser': false, 'cancelled': true};
+      }
+
+      final String email = googleUser.email;
+      final String name = googleUser.displayName ?? 'Google User';
+      final String photoUrl = googleUser.photoUrl ?? '';
+
       final data = await ApiService.post(ApiEndpoints.googleAuth, {
         'email': email,
         'name': name,
-        'profile_picture': photoUrl ?? '',
+        'profile_picture': photoUrl,
       });
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(ApiService.tokenKey, data['access']);
       await prefs.setString(ApiService.refreshKey, data['refresh']);
+
+      final bool isNewUser = data['is_new_user'] ?? false;
+      _isFirstTimeUser = isNewUser;
 
       if (data['user'] != null) {
         _currentUser = UserModel.fromJson(data['user']);
@@ -202,47 +170,17 @@ class AuthProvider with ChangeNotifier {
         await fetchProfile();
       }
 
+      await prefs.setString('saved_user_role', 'PATIENT');
+      await prefs.setString('saved_user_email', email);
+
       _isLoading = false;
       notifyListeners();
-      return true;
+      return {'success': true, 'isNewUser': isNewUser, 'cancelled': false};
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> loginWithFacebook({required String email, required String name, String? photoUrl}) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final data = await ApiService.post(ApiEndpoints.facebookAuth, {
-        'email': email,
-        'name': name,
-        'profile_picture': photoUrl ?? '',
-      });
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(ApiService.tokenKey, data['access']);
-      await prefs.setString(ApiService.refreshKey, data['refresh']);
-
-      if (data['user'] != null) {
-        _currentUser = UserModel.fromJson(data['user']);
-      } else {
-        await fetchProfile();
-      }
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
-      notifyListeners();
-      return false;
+      return {'success': false, 'isNewUser': false, 'cancelled': false, 'error': _errorMessage};
     }
   }
 
@@ -256,11 +194,11 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> setCategoryPreference(String categoryId) async {
+  Future<bool> setCategoryPreferences(List<String> categoryIds) async {
     try {
       await ApiService.post(
         ApiEndpoints.categoryPreference,
-        {'category': categoryId},
+        {'category_ids': categoryIds},
         requireAuth: true,
       );
       await fetchProfile();
@@ -272,6 +210,9 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(ApiService.tokenKey);
     await prefs.remove(ApiService.refreshKey);
