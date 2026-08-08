@@ -32,7 +32,6 @@ class AuthProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(ApiService.tokenKey);
-      final savedEmail = prefs.getString('saved_user_email');
 
       if (token != null) {
         try {
@@ -41,18 +40,30 @@ class AuthProvider with ChangeNotifier {
         } catch (_) {}
       }
 
-      if (_currentUser != null) {
-        final savedAvatar = prefs.getString('saved_user_avatar_base64_${_currentUser!.id}');
-        if (savedAvatar != null && savedAvatar.isNotEmpty) {
-          _currentUser = _currentUser!.copyWith(avatar: savedAvatar);
-        }
-      }
+      await _restoreAvatarIfEmpty();
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _restoreAvatarIfEmpty() async {
+    if (_currentUser == null) return;
+    if (_currentUser!.avatar != null && _currentUser!.avatar!.isNotEmpty) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedByEmail = prefs.getString('saved_avatar_${_currentUser!.email.toLowerCase()}');
+      final savedById = prefs.getString('saved_user_avatar_base64_${_currentUser!.id}');
+      final savedLast = prefs.getString('saved_last_user_avatar');
+
+      final avatarToUse = savedByEmail ?? savedById ?? savedLast;
+      if (avatarToUse != null && avatarToUse.isNotEmpty) {
+        _currentUser = _currentUser!.copyWith(avatar: avatarToUse);
+      }
+    } catch (_) {}
   }
 
   Future<bool> login(String emailOrUsername, String password, {String role = 'PATIENT'}) async {
@@ -78,6 +89,8 @@ class AuthProvider with ChangeNotifier {
       } else {
         await fetchProfile();
       }
+
+      await _restoreAvatarIfEmpty();
 
       await prefs.setString('saved_user_role', _currentUser?.role ?? role);
       await prefs.setString('saved_user_email', _currentUser?.email ?? emailOrUsername);
@@ -128,6 +141,7 @@ class AuthProvider with ChangeNotifier {
       if (data['user'] != null) {
         _currentUser = UserModel.fromJson(data['user']);
       }
+      await _restoreAvatarIfEmpty();
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
@@ -164,6 +178,8 @@ class AuthProvider with ChangeNotifier {
       } else {
         await fetchProfile();
       }
+
+      await _restoreAvatarIfEmpty();
 
       await prefs.setString('saved_user_role', 'PATIENT');
       await prefs.setString('saved_user_email', email);
@@ -209,11 +225,8 @@ class AuthProvider with ChangeNotifier {
     try {
       final data = await ApiService.get(ApiEndpoints.profile, requireAuth: true);
       final fetchedUser = UserModel.fromJson(data);
-      if (_currentUser != null && (_currentUser!.avatar?.isNotEmpty ?? false) && (fetchedUser.avatar == null || fetchedUser.avatar!.isEmpty)) {
-        _currentUser = fetchedUser.copyWith(avatar: _currentUser!.avatar);
-      } else {
-        _currentUser = fetchedUser;
-      }
+      _currentUser = fetchedUser;
+      await _restoreAvatarIfEmpty();
       notifyListeners();
     } catch (e) {
       _errorMessage = e.toString();
@@ -227,7 +240,9 @@ class AuthProvider with ChangeNotifier {
 
       try {
         final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('saved_avatar_${_currentUser!.email.toLowerCase()}', base64Image);
         await prefs.setString('saved_user_avatar_base64_${_currentUser!.id}', base64Image);
+        await prefs.setString('saved_last_user_avatar', base64Image);
       } catch (_) {}
 
       try {
@@ -262,6 +277,7 @@ class AuthProvider with ChangeNotifier {
         if (response != null && response is Map<String, dynamic>) {
           final updated = UserModel.fromJson(response);
           _currentUser = updated.copyWith(avatar: _currentUser?.avatar ?? updated.avatar);
+          await _restoreAvatarIfEmpty();
         }
       }
 
@@ -295,6 +311,8 @@ class AuthProvider with ChangeNotifier {
     try {
       await _googleSignIn.signOut();
     } catch (_) {}
+
+    // Retain saved_avatar keys so logging back in preserves the profile photo!
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(ApiService.tokenKey);
     await prefs.remove(ApiService.refreshKey);

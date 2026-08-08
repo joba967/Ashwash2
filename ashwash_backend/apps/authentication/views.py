@@ -90,7 +90,11 @@ class ProfileView(generics.RetrieveUpdateAPIView):
             user.username = new_username
 
         if profile_picture:
-            user.profile_picture = profile_picture
+            if not (isinstance(profile_picture, str) and profile_picture.startswith('data:image')):
+                try:
+                    user.profile_picture = profile_picture
+                except Exception:
+                    pass
             preferences = user.preferences or {}
             preferences['profile_picture_base64'] = profile_picture
             user.preferences = preferences

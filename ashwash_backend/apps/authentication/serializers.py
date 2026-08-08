@@ -157,10 +157,21 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     selected_categories = CategorySerializer(many=True, read_only=True)
     specialist_profile = serializers.SerializerMethodField(read_only=True, required=False)
+    profile_picture = serializers.SerializerMethodField(read_only=True, required=False)
 
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone_number', 'profile_picture', 'selected_categories', 'preferences', 'specialist_profile')
+
+    def get_profile_picture(self, obj):
+        if obj.profile_picture:
+            try:
+                return obj.profile_picture.url
+            except Exception:
+                pass
+        if isinstance(obj.preferences, dict) and obj.preferences.get('profile_picture_base64'):
+            return obj.preferences['profile_picture_base64']
+        return None
 
     def get_specialist_profile(self, obj):
         if hasattr(obj, 'specialist_profile'):
