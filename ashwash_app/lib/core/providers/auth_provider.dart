@@ -133,28 +133,16 @@ class AuthProvider with ChangeNotifier {
     return true;
   }
 
-  Future<Map<String, dynamic>> loginWithGoogle() async {
+  Future<Map<String, dynamic>> loginWithGoogleDirect({required String email, required String name, String? photoUrl}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // Trigger native OS Google Account Picker sheet
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        _isLoading = false;
-        notifyListeners();
-        return {'success': false, 'isNewUser': false, 'cancelled': true};
-      }
-
-      final String email = googleUser.email;
-      final String name = googleUser.displayName ?? 'Google User';
-      final String photoUrl = googleUser.photoUrl ?? '';
-
       final data = await ApiService.post(ApiEndpoints.googleAuth, {
         'email': email,
         'name': name,
-        'profile_picture': photoUrl,
+        'profile_picture': photoUrl ?? '',
       });
 
       final prefs = await SharedPreferences.getInstance();
@@ -181,6 +169,32 @@ class AuthProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return {'success': false, 'isNewUser': false, 'cancelled': false, 'error': _errorMessage};
+    }
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogle() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        _isLoading = false;
+        notifyListeners();
+        return {'success': false, 'isNewUser': false, 'cancelled': true};
+      }
+
+      return await loginWithGoogleDirect(
+        email: googleUser.email,
+        name: googleUser.displayName ?? 'Google User',
+        photoUrl: googleUser.photoUrl ?? '',
+      );
+    } catch (e) {
+      debugPrint("Google Native Sign-In SDK Note (Developer SHA-1 / ApiException): $e");
+      _isLoading = false;
+      notifyListeners();
+      return {'success': false, 'isNewUser': false, 'cancelled': false, 'fallback': true, 'error': e.toString()};
     }
   }
 

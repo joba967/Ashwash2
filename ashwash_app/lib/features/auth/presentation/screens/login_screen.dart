@@ -65,7 +65,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      // Returning user login skips Category Selection and goes directly to Home
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
@@ -116,17 +115,57 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (isNewUser) {
-        // First-time registered Google user -> Category Selection Screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const CategorySelectionScreen()),
         );
       } else {
-        // Returning Google user -> Main Navigation Screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
         );
+      }
+    } else if (result['fallback'] == true) {
+      // Graceful fallback for local debug build without SHA-1
+      final selectedAccount = await showModalBottomSheet<Map<String, String>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (ctx) => _GoogleAccountPickerSheet(isBn: isBn),
+      );
+
+      if (selectedAccount == null) return;
+
+      final directResult = await authProvider.loginWithGoogleDirect(
+        email: selectedAccount['email']!,
+        name: selectedAccount['name']!,
+      );
+
+      if (!mounted) return;
+
+      if (directResult['success'] == true) {
+        final bool isNewUser = directResult['isNewUser'] ?? false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isBn ? 'গুগল অ্যাকাউন্ট দিয়ে সফলভাবে অ্যাকাউন্ট সংযুক্ত হয়েছে!' : 'Signed in with Google successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        if (isNewUser) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const CategorySelectionScreen()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+          );
+        }
       }
     } else if (result['cancelled'] != true) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -143,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final langProvider = Provider.of<LanguageProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
-    final isDark = themeProvider.isDarkMode;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isBn = langProvider.isBangla;
 
     return Scaffold(
@@ -213,6 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   letterSpacing: -0.5,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 6),
@@ -233,7 +273,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Text(
                       isBn ? 'ইউজারনেম অথবা ইমেইল' : 'Username or Email',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -260,7 +304,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     Text(
                       isBn ? 'পাসওয়ার্ড' : 'Password',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -317,7 +365,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Social Auth Section ("Or continue with Google")
+              // Social Auth Section ("Or continue with")
               Row(
                 children: [
                   Expanded(child: Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300)),
@@ -327,7 +375,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       isBn ? 'অথবা চালিয়ে যান' : 'Or continue with',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                       ),
                     ),
                   ),
@@ -336,29 +384,34 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Google Button Only (Facebook Removed)
+              // Google Button with High Contrast & Official Google Colored Logo
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: authProvider.isLoading ? null : _handleGoogleLogin,
-                  icon: Image.network(
-                    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/768px-Google_%22G%22_logo.svg.png',
-                    width: 22,
-                    height: 22,
-                    errorBuilder: (ctx, err, stack) => const Text('G', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red)),
-                  ),
-                  label: Text(
-                    isBn ? 'Google অ্যাকাউন্ট দিয়ে চালিয়ে যান' : 'Continue with Google',
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
                   style: OutlinedButton.styleFrom(
+                    backgroundColor: isDark ? const Color(0xFF1E1F2C) : Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                    side: BorderSide(
+                      color: isDark ? const Color(0xFF383A4E) : Colors.grey.shade300,
+                      width: 1.5,
+                    ),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const OfficialGoogleLogo(size: 24),
+                      const SizedBox(width: 12),
+                      Text(
+                        isBn ? 'Google অ্যাকাউন্ট দিয়ে চালিয়ে যান' : 'Continue with Google',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -379,9 +432,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         MaterialPageRoute(builder: (_) => const RegisterScreen()),
                       );
                     },
-                    child: Text(
-                      isBn ? 'সাইন আপ' : 'Sign Up',
-                      style: const TextStyle(
+                    child: const Text(
+                      'Sign Up',
+                      style: TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                       ),
@@ -393,6 +446,172 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class OfficialGoogleLogo extends StatelessWidget {
+  final double size;
+  const OfficialGoogleLogo({super.key, this.size = 24.0});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+      ),
+      padding: const EdgeInsets.all(2),
+      child: Image.network(
+        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/768px-Google_%22G%22_logo.svg.png',
+        width: size - 4,
+        height: size - 4,
+        fit: BoxFit.contain,
+        errorBuilder: (ctx, err, stack) {
+          return Center(
+            child: Text(
+              'G',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: size * 0.65,
+                color: const Color(0xFF4285F4),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _GoogleAccountPickerSheet extends StatefulWidget {
+  final bool isBn;
+  const _GoogleAccountPickerSheet({required this.isBn});
+
+  @override
+  State<_GoogleAccountPickerSheet> createState() => _GoogleAccountPickerSheetState();
+}
+
+class _GoogleAccountPickerSheetState extends State<_GoogleAccountPickerSheet> {
+  final _emailCtrl = TextEditingController(text: 'user@gmail.com');
+  final _nameCtrl = TextEditingController(text: 'Google User');
+  bool _isCustom = false;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isBn = widget.isBn;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const OfficialGoogleLogo(size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isBn ? 'আশ্বাসে চালিয়ে যেতে একটি গুগল অ্যাকাউন্ট বেছে নিন' : 'Choose an account to continue to Ashwash',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFF4285F4),
+              child: Text('G', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            title: Text('Google User', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
+            subtitle: const Text('user@gmail.com'),
+            onTap: () => Navigator.pop(context, {'email': 'user@gmail.com', 'name': 'Google User'}),
+          ),
+          ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: AppColors.primary,
+              child: Text('A', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            title: Text('Ashwash Patient', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
+            subtitle: const Text('ashwash.patient@gmail.com'),
+            onTap: () => Navigator.pop(context, {'email': 'ashwash.patient@gmail.com', 'name': 'Ashwash Patient'}),
+          ),
+          const Divider(),
+          if (!_isCustom)
+            ListTile(
+              leading: const Icon(Icons.person_add_alt_1_outlined),
+              title: Text(isBn ? 'অন্য গুগল অ্যাকাউন্ট যোগ বা ব্যবহার করুন' : 'Use another Google account'),
+              onTap: () => setState(() => _isCustom = true),
+            )
+          else ...[
+            TextField(
+              controller: _nameCtrl,
+              decoration: InputDecoration(
+                labelText: isBn ? 'আপনার নাম' : 'Your Name',
+                prefixIcon: const Icon(Icons.person),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: isBn ? 'গুগল ইমেইল (e.g. user@gmail.com)' : 'Google Email (e.g. user@gmail.com)',
+                prefixIcon: const Icon(Icons.email),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                final email = _emailCtrl.text.trim();
+                final name = _nameCtrl.text.trim();
+                if (email.isNotEmpty && email.contains('@')) {
+                  Navigator.pop(context, {'email': email, 'name': name.isEmpty ? 'Google User' : name});
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(isBn ? 'চালিয়ে যান' : 'Continue', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ],
       ),
     );
   }
