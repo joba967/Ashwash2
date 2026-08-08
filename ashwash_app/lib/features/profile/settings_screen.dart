@@ -191,15 +191,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          TextButton.icon(
+                          TextButton(
                             onPressed: isUploadingImage ? null : pickAndUploadImage,
-                            icon: isUploadingImage
-                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                : const Icon(Icons.photo_library_outlined, size: 18),
-                            label: Text(
-                              isBn ? 'ডিভাইস গ্যালারি থেকে ছবি আপলোড করুন' : 'Add/Change Photo from Device',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                            child: isUploadingImage
+                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                : Text(
+                                    isBn ? 'ছবি যোগ বা পরিবর্তন করুন' : 'Add or Change Photo',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
                           ),
                         ],
                       ),

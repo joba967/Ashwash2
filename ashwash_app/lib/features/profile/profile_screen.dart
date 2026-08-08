@@ -7,8 +7,9 @@ import '../../core/providers/dashboard_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/notification_provider.dart';
 import '../../core/providers/specialist_provider.dart';
-import '../../core/providers/mood_progress_provider.dart';
+import '../appointments/specialist_list_screen.dart';
 import '../auth/presentation/screens/login_screen.dart';
+import '../courses/courses_screen.dart';
 import '../notifications/screens/notification_screen.dart';
 import 'settings_screen.dart';
 import 'report_screen.dart';
@@ -39,7 +40,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final notifProvider = Provider.of<NotificationProvider>(context);
     final dashboardProvider = Provider.of<DashboardProvider>(context);
     final specialistProvider = Provider.of<SpecialistProvider>(context);
-    final moodProgressProvider = Provider.of<MoodProgressProvider>(context);
 
     final isBn = langProvider.isBangla;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -54,8 +54,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // REAL DYNAMIC STATS COMPUTATION (NO HARDCODED DUMMY NUMBERS)
     final int realCoursesCount = dashboardProvider.enrolledCourses.length;
     final int realSessionsCount = specialistProvider.appointments.length;
-    final int moodCount = moodProgressProvider.moodHistory.length;
-    final int realPointsCount = (realCoursesCount * 100) + (realSessionsCount * 50) + (moodCount * 20);
 
     // PROFILE PICTURE FROM DEVICE/BACKEND
     ImageProvider? avatarImage;
@@ -199,39 +197,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Real Stats Summary Cards Row (Actual dynamic values)
+            // Real Interactive Stats Cards Row (Clickable to view actual details)
             Row(
               children: [
                 Expanded(
-                  child: _buildStatBox(
-                    context,
-                    count: '$realCoursesCount',
-                    label: isBn ? 'কোর্সসমূহ' : 'Courses',
-                    icon: Icons.menu_book_rounded,
-                    iconColor: const Color(0xFFA855F7),
-                    isDark: isDark,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CoursesScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(18),
+                    child: _buildStatBox(
+                      context,
+                      count: '$realCoursesCount',
+                      label: isBn ? 'কোর্সসমূহ' : 'Courses',
+                      icon: Icons.menu_book_rounded,
+                      iconColor: const Color(0xFFA855F7),
+                      isDark: isDark,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
-                  child: _buildStatBox(
-                    context,
-                    count: '$realSessionsCount',
-                    label: isBn ? 'সেশন' : 'Sessions',
-                    icon: Icons.calendar_today_outlined,
-                    iconColor: const Color(0xFF3B82F6),
-                    isDark: isDark,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatBox(
-                    context,
-                    count: '$realPointsCount',
-                    label: isBn ? 'পয়েন্ট' : 'Points',
-                    icon: Icons.workspace_premium_outlined,
-                    iconColor: const Color(0xFFF59E0B),
-                    isDark: isDark,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SpecialistListScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(18),
+                    child: _buildStatBox(
+                      context,
+                      count: '$realSessionsCount',
+                      label: isBn ? 'সেশনসমূহ' : 'Sessions',
+                      icon: Icons.calendar_today_outlined,
+                      iconColor: const Color(0xFF3B82F6),
+                      isDark: isDark,
+                    ),
                   ),
                 ),
               ],
@@ -364,7 +369,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -380,13 +385,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: iconColor, size: 24),
+          Icon(icon, color: iconColor, size: 26),
           const SizedBox(height: 8),
           Text(
             count,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 20,
+              fontSize: 22,
               color: isDark ? Colors.white : const Color(0xFF0F172A),
             ),
           ),
@@ -395,8 +400,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label,
             style: TextStyle(
               color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
