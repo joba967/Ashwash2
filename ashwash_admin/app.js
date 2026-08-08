@@ -697,8 +697,8 @@ function renderKnowledgeHubTable(resources) {
                 <td>#${r.id}</td>
                 <td>${typeBadge}</td>
                 <td>
-                    <div class="fw-bold text-white">${r.title_bn || r.title || 'Untitled'}</div>
-                    <div class="text-secondary small">${r.title_en || ''}</div>
+                    <div class="fw-bold text-white">${r.title_en || r.title || 'Untitled'}</div>
+                    <div class="text-secondary small">${r.title_bn || ''}</div>
                 </td>
                 <td>${r.duration_minutes ? r.duration_minutes + ' Mins' : (r.duration_display || 'Standard')}</td>
                 <td>
