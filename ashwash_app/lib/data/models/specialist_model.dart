@@ -16,6 +16,8 @@ class SpecialistModel {
   final bool isAvailable;
   final bool isOnline;
 
+  String get avatarUrl => imageUrl;
+
   SpecialistModel({
     required this.id,
     required this.name,

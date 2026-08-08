@@ -371,7 +371,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                   patientName: 'Patient User',
                                   patientAvatar: '',
                                   specialistName: widget.specialist.name,
-                                  specialistAvatar: widget.specialist.avatarUrl,
+                                  specialistAvatar: widget.specialist.imageUrl,
                                   date: appDateStr,
                                   timeSlot: _selectedTimeSlot,
                                   category: widget.specialist.specialization,
