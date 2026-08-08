@@ -6,10 +6,10 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/dashboard_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/notification_provider.dart';
+import '../../core/providers/specialist_provider.dart';
+import '../../core/providers/mood_progress_provider.dart';
 import '../auth/presentation/screens/login_screen.dart';
-import '../mood/providers/mood_provider.dart';
 import '../notifications/screens/notification_screen.dart';
-import '../specialist/providers/specialist_provider.dart';
 import 'settings_screen.dart';
 import 'report_screen.dart';
 
@@ -39,7 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final notifProvider = Provider.of<NotificationProvider>(context);
     final dashboardProvider = Provider.of<DashboardProvider>(context);
     final specialistProvider = Provider.of<SpecialistProvider>(context);
-    final moodProvider = Provider.of<MoodProvider>(context);
+    final moodProgressProvider = Provider.of<MoodProgressProvider>(context);
 
     final isBn = langProvider.isBangla;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -54,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // REAL DYNAMIC STATS COMPUTATION (NO HARDCODED DUMMY NUMBERS)
     final int realCoursesCount = dashboardProvider.enrolledCourses.length;
     final int realSessionsCount = specialistProvider.appointments.length;
-    final int realPointsCount = (realCoursesCount * 100) + (realSessionsCount * 50) + (moodProvider.logs.length * 20);
+    final int realPointsCount = (realCoursesCount * 100) + (realSessionsCount * 50) + (moodProgressProvider.recentEntries.length * 20);
 
     // PROFILE PICTURE FROM DEVICE/BACKEND
     ImageProvider? avatarImage;

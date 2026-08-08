@@ -363,58 +363,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
               ),
-              const SizedBox(height: 24),
-
-              // Social Auth Section ("Or continue with")
-              Row(
-                children: [
-                  Expanded(child: Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                      isBn ? 'অথবা চালিয়ে যান' : 'Or continue with',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                      ),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300)),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Google Button with High Contrast & Official Google Colored Logo
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: authProvider.isLoading ? null : _handleGoogleLogin,
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: isDark ? const Color(0xFF1E1F2C) : Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: BorderSide(
-                      color: isDark ? const Color(0xFF383A4E) : Colors.grey.shade300,
-                      width: 1.5,
-                    ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const OfficialGoogleLogo(size: 24),
-                      const SizedBox(width: 12),
-                      Text(
-                        isBn ? 'Google অ্যাকাউন্ট দিয়ে চালিয়ে যান' : 'Continue with Google',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
               const SizedBox(height: 32),
 
               // Footer Link ("Don't have an account? Sign Up")
