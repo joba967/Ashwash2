@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_language_provider.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/api_service.dart';
+import '../../../../core/services/api_service.dart' as mock_api;
 import '../../../../core/providers/dashboard_provider.dart';
 import '../../../../core/providers/notification_provider.dart';
 import '../../../../data/models/course_model.dart';
@@ -409,8 +410,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     final course = widget.course;
     final isBn = Provider.of<AppLanguageProvider>(context).isBangla;
     final dashboardProvider = Provider.of<DashboardProvider>(context);
-    final apiService = ApiService();
-    final allCourses = apiService.getMockCourses();
+    final allCourses = mock_api.ApiService().getMockCourses();
 
     final bool isEnrolledInApp = dashboardProvider.isCourseEnrolled(course.id, course.titleEn);
 

@@ -56,6 +56,20 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
+  void addNotification({required String title, required String message, String type = 'ENROLLMENT'}) {
+    final newNotif = NotificationModel(
+      id: DateTime.now().millisecondsSinceEpoch,
+      title: title,
+      body: message,
+      type: type,
+      isRead: false,
+      createdAt: 'Just now',
+    );
+    _notifications.insert(0, newNotif);
+    _unreadCount = _notifications.where((n) => !n.isRead).length;
+    notifyListeners();
+  }
+
   Future<void> fetchNotifications() async {
     _isLoading = true;
     notifyListeners();
